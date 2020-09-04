@@ -1,0 +1,56 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+}}
+<div class="local_komettranslator frameworks">
+    <a href="{{wwwroot}}/local/komettranslator/run.php" class="btn btn-primary">
+        {{#str}} runsync, local_komettranslator {{/str}}
+    </a>
+    <table class="generaltable">
+        <thead>
+            <tr>
+                <th>{{#str}} name {{/str}}</th>
+                <th>{{#str}} active {{/str}}</th>
+                <th>{{#str}} view {{/str}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#frameworks}}
+                <tr>
+                    <td>{{shortname}}</td>
+                    <td>
+                        {{#isactive}}
+                        <a href="{{wwwroot}}/local/komettranslator/frameworks.php?disable={{idnumber}}">
+                            <i class="fa fa-icon fa-eye" aria-hidden="true"></i>
+                        </a>
+                        {{/isactive}}
+                        {{^isactive}}
+                        <a href="{{wwwroot}}/local/komettranslator/frameworks.php?enable={{idnumber}}">
+                            <i class="fa fa-icon fa-eye-slash" aria-hidden="true"></i>
+                        </a>
+                        {{/isactive}}
+                    </td>
+                    <td>
+                        <a href="{{wwwroot}}/local/komettranslator/review.php?idnumber={{idnumber}}" target="_blank"
+                            alt="{{#str}} view {{/str}}">
+                            <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                        </a>
+                    </td>
+                </tr>
+            {{/frameworks}}
+        </tbody>
+    </table>
+</div>

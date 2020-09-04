@@ -29,11 +29,8 @@ namespace local_komettranslator;
 
 require('../../config.php');
 
-$enable = optional_param('enable', '', PARAM_TEXT);
-$disable = optional_param('disable', '', PARAM_TEXT);
-
 require_login();
-$PAGE->set_url(new \moodle_url('/local/komettranslator/frameworks.php', array()));
+$PAGE->set_url(new \moodle_url('/local/komettranslator/run.php', array()));
 $PAGE->set_context(\context_system::instance());
 $PAGE->set_heading(get_string('competencyframeworks', 'local_komettranslator'));
 $PAGE->set_title(get_string('competencyframeworks', 'local_komettranslator'));
@@ -49,14 +46,6 @@ if (!is_siteadmin()) {
     die();
 }
 
-// Reference XML for development: https://eeducation.at/uploads/data.xml
-// exacomp
-// - edulevels --> transfer to competency frameworks
-// - descriptors --> are referenced within competenca frameworks
-// - examples --> contain examples for learning material to certain descriptors
+\local_komettranslator\locallib::runsync(true, true);
 
-$exacomp = \local_komettranslator\locallib::load_from_xmlurl(false);
-$frameworks = \local_komettranslator\locallib::load_from_xml($exacomp, true, false);
-
-echo $OUTPUT->render_from_template('local_komettranslator/frameworks', array('frameworks' => $frameworks, 'wwwroot' => $CFG->wwwroot));
 echo $OUTPUT->footer();

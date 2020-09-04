@@ -28,6 +28,7 @@ if ($hassiteconfig) {
     $ADMIN->add('localplugins', new admin_category('local_komettranslator', get_string('pluginname', 'local_komettranslator')));
     $ADMIN->add('local_komettranslator', $settings);
     $settings->add(new admin_setting_configtext('local_komettranslator/xmlurl', get_string('xmlurl', 'local_komettranslator'), get_string('xmlurl:description', 'local_komettranslator'), "", PARAM_URL));
+    $settings->add(new admin_setting_configcheckbox('local_komettranslator/xmlurlsslverify', get_string('xmlurl:verifypeer', 'local_komettranslator'), get_string('xmlurl:verifypeer:description', 'local_komettranslator'), 1));
 
     $ADMIN->add(
         'local_komettranslator',

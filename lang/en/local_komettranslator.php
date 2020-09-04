@@ -25,8 +25,26 @@ $string['pluginname'] = 'KOMET Translator';
 $string['pluginname:settings'] = 'KOMET Translator';
 $string['privacy:metadata'] = 'This plugin does not store any personal data';
 
+$string['access_denied'] = 'Zugriff nicht gestattet';
+
 $string['cron:title'] = 'KOMET Translator Cron';
+$string['competencyframework:enabled'] = 'Enabled synchronization for framework <strong>{$a->shortname}</strong>!';
+$string['competencyframework:disabled'] = 'Disabled synchronization for framework <strong>{$a->shortname}</strong>!';
+$string['competencyframework:notcreated'] = 'No competency framework could be found or created for <strong>{$a->shortname} / {$a->idnumber}</strong>!';
+$string['competencyframework:processing'] = 'Processing competency framework <strong>{$a->shortname} / {$a->idnumber}</strong>!';
 $string['competencyframeworks'] = 'Competency Frameworks';
+$string['competencyframeworks:review'] = 'Review Competency Frameworks';
+
+$string['descriptors'] = 'Descriptors';
+
+$string['runsync'] = 'Run sync';
+
+$string['topic'] = 'Topic';
 
 $string['xmlurl'] = 'XML URL';
 $string['xmlurl:description'] = 'Please specify the URL of the public XML file.';
+$string['xmlurl:loading'] = 'Loading XML Structure from {$a->xmlurl}';
+$string['xmlurl:missing'] = 'No XML-URL configured. Please specify in website administration!';
+$string['xmlurl:verifypeer'] = 'Verify SSL';
+$string['xmlurl:verifypeer:description'] = 'By default SSL Certificates must be validated. In certain cases you want to disable this option.';
+$string['xmlurl:verifypeer:warning'] = 'Attention, according to your configuration, SSL Certificates are not validated!';
