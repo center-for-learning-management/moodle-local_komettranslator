@@ -248,8 +248,9 @@ class locallib {
                 $sysctx = \context_system::instance();
                 $oframework = (object) array(
                     'contextid' => $sysctx->id,
+                    'description' => $_framework['shortname'],
                     'idnumber' => $_framework['idnumber'],
-                    'shortname' => $_framework['shortname'],
+                    'shortname' => mb_strimwidth($_framework['shortname'], 0, 100, "..."),
                     'scaleid' => 2,
                     'scaleconfiguration' => '[{"scaleid":"2"},{"id":1,"scaledefault":1,"proficient":1},{"id":2,"scaledefault":0,"proficient":1}]',
                     'taxonomies' => 'competency,competency,competency,competency',
@@ -272,15 +273,15 @@ class locallib {
                 foreach ($topics as $topic) {
                     $ptopic = $DB->get_record('competency', array('idnumber' => $topic['idnumber']));
                     if (!empty($ptopic->id)) {
-                        $ptopic->shortname = $topic['shortname'];
-                        $ptopic->description = $topic['description'];
+                        $ptopic->shortname = mb_strimwidth($topic['shortname'], 0, 100, "...");
+                        $ptopic->description = (!empty($topic['description']) ? $topic['description'] : $topic['shortname']);
                         $ptopic->sortorder = $topic['sorting'];
                         $ptopic->timemodified = time();
                         \core_competency\api::update_competency($ptopic);
                     } else {
                         $otopic = (object) array(
-                            'shortname' => $topic['shortname'],
-                            'description' => $topic['description'],
+                            'shortname' => mb_strimwidth($topic['shortname'], 0, 100, "..."),
+                            'description' => (!empty($topic['description']) ? $topic['description'] : $topic['shortname']),
                             'idnumber' => $topic['idnumber'],
                             'competencyframeworkid' => $fr->id,
                             'parentid' => 0,
@@ -298,15 +299,15 @@ class locallib {
                         foreach ($topic['descriptors'] as $sorting => $topic) {
                             $comp = $DB->get_record('competency', array('idnumber' => $topic['idnumber']));
                             if (!empty($comp->id)) {
-                                $comp->shortname = $topic['title'];
-                                $comp->description = $topic['description'];
+                                $comp->shortname = mb_strimwidth($topic['title'], 0, 100, "...");
+                                $comp->description = (!empty($topic['description']) ? $topic['description'] : $topic['title']);
                                 $comp->sortorder = $sorting;
                                 $comp->timemodified = time();
                                 \core_competency\api::update_competency($comp);
                             } else {
                                 $ocomp = (object) array(
-                                    'shortname' => $topic['title'],
-                                    'description' => $topic['description'],
+                                    'shortname' => mb_strimwidth($topic['title'], 0, 100, "..."),
+                                    'description' => (!empty($topic['description']) ? $topic['description'] : $topic['title']),
                                     'idnumber' => $topic['idnumber'],
                                     'competencyframeworkid' => $fr->id,
                                     'parentid' => $ptopic->id,
@@ -317,13 +318,13 @@ class locallib {
                                     'usermodified' => $USER->id,
                                 );
                                 \core_competency\api::create_competency($ocomp);
-                                $topic = $DB->get_record('competency', array('idnumber' => $topic['idnumber']));
+                                $comp = $DB->get_record('competency', array('idnumber' => $topic['idnumber']));
                             }
                         }
-                        if (empty($topic->id)) {
+                        if (empty($comp->id)) {
                             echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
                                 'type' => 'danger',
-                                'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $topic->shortname, 'idnumber' => $topic->idnumber)),
+                                'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
                             ));
                         }
                     } else {
@@ -332,8 +333,6 @@ class locallib {
                             'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
                         ));
                     }
-
-                    echo '<hr>';
                 }
 
             } elseif ($displaywarnings) {
