@@ -239,7 +239,7 @@ class locallib {
             $fr = $DB->get_record('competency_framework', array('idnumber' => $_framework['idnumber']));
 
             if (!empty($fr->id)) {
-                $fr->shortname = $_framework['shortname'];
+                $fr->shortname = mb_strimwidth($_framework['shortname'], 0, 100, "...");
                 $fr->timemodified = time();
                 $fr->usermodified = $USER->id;
                 // @TODO Scale configuration and taxonomies
