@@ -253,7 +253,7 @@ class locallib {
     }
     /**
      * Gets, sets or unsets a mapping.
-     * @param type framework or competency
+     * @param type topic, descriptor or subject
      * @param sourceid of komet
      * @param itemid of komet
      * @param internalid the internal id of framework or competency, 0 if we only want to get it
@@ -313,13 +313,13 @@ class locallib {
             if (empty($_framework['isactive'])) {
                 continue;
             }
-            $mapping = self::mapping('framework', $_framework['idnumber_array']['sourceid'], $_framework['idnumber_array']['id']);
+            $mapping = self::mapping('subject', $_framework['idnumber_array']['sourceid'], $_framework['idnumber_array']['id']);
 
             if (!empty($mapping->id)) {
                 $fr = $DB->get_record('competency_framework', array('id' => $mapping->internalid));
                 if (empty($fr->id)) {
                     // Mapped a competency, that does not exist. remove mapping.
-                    self::mapping('framework',  $mapping->sourceid, $mapping->itemid, 0, true);
+                    self::mapping('subject',  $mapping->sourceid, $mapping->itemid, 0, true);
                 }
             } else {
                 $fr = (object)array();
@@ -356,7 +356,7 @@ class locallib {
 
             // Ensure that now a framework exists.
             if (!empty($fr->id)) {
-                $mapping = self::mapping('framework', $_framework['idnumber_array']['sourceid'], $_framework['idnumber_array']['id'], $fr->id);
+                $mapping = self::mapping('subject', $_framework['idnumber_array']['sourceid'], $_framework['idnumber_array']['id'], $fr->id);
                 echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
                     'type' => 'success',
                     'content' => get_string('competencyframework:processing', 'local_komettranslator', array('shortname' => $fr->shortname, 'idnumber' => $fr->idnumber)),
@@ -365,12 +365,12 @@ class locallib {
                 $topics = self::load_topics($exacomp, $mapping);
 
                 foreach ($topics as $topic) {
-                    $mapping = self::mapping('competency', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id']);
+                    $mapping = self::mapping('topic', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id']);
                     if (!empty($mapping->id)) {
                         $ptopic = $DB->get_record('competency', array('id' => $mapping->internalid));
                         if (empty($ptopic->id)) {
                             // Mapped a competency, that does not exist. remove mapping.
-                            self::mapping('competency',  $mapping->sourceid, $mapping->itemid, 0, true);
+                            self::mapping('topic',  $mapping->sourceid, $mapping->itemid, 0, true);
                         }
                     } else {
                         $ptopic = (object)array();
@@ -401,16 +401,16 @@ class locallib {
                         $competency = \core_competency\api::create_competency($otopic);
                         $ptopic = $DB->get_record('competency', array('id' => $competency->id));
                     }
-                    self::mapping('competency', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $ptopic->id);
+                    self::mapping('topic', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $ptopic->id);
                     if (!empty($ptopic->id)) {
                         // Parent competency exists, proceed with descriptors.
                         foreach ($topic['descriptors'] as $sorting => $topic) {
-                            $mapping = self::mapping('competency', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id']);
+                            $mapping = self::mapping('descriptor', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id']);
                             if (!empty($mapping->id)) {
                                 $comp = $DB->get_record('competency', array('id' => $mapping->internalid));
                                 if (empty($comp->id)) {
                                     // Mapped a competency, that does not exist. remove mapping.
-                                    self::mapping('competency',  $mapping->sourceid, $mapping->itemid, 0, true);
+                                    self::mapping('descriptor',  $mapping->sourceid, $mapping->itemid, 0, true);
                                 }
                             } else {
                                 $comp = (object)array();
@@ -447,7 +447,7 @@ class locallib {
                                     'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
                                 ));
                             } else {
-                                self::mapping('competency', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $comp->id);
+                                self::mapping('descriptor', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $comp->id);
                             }
                         }
                     } else {
