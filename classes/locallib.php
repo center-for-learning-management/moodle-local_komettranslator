@@ -351,6 +351,7 @@ class locallib {
                 );
                 // @TODO Scale configuration and taxonomies
                 $framework = \core_competency\api::create_framework($oframework);
+                $framework = $DB->get_record('competency_framework', array('idnumber' => md5($_framework['idnumber'])));
                 $fr = $DB->get_record('competency_framework', array('id' => $framework->id));
             }
 
@@ -399,6 +400,7 @@ class locallib {
                             'usermodified' => $USER->id,
                         );
                         $competency = \core_competency\api::create_competency($otopic);
+                        $competency = $DB->get_record('competency', array('idnumber' => md5($topic['idnumber'])));
                         $ptopic = $DB->get_record('competency', array('id' => $competency->id));
                     }
                     self::mapping('topic', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $ptopic->id);
@@ -439,6 +441,7 @@ class locallib {
                                     'usermodified' => $USER->id,
                                 );
                                 $competency = \core_competency\api::create_competency($ocomp);
+                                $competency = $DB->get_record('competency', array('idnumber' => md5($topic['idnumber'])));
                                 $comp = $DB->get_record('competency', array('id' => $competency->id));
                             }
                             if (empty($comp->id)) {
