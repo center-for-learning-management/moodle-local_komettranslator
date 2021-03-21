@@ -20,6 +20,7 @@
       <INDEXES>
         <INDEX NAME="idx_sourceid" UNIQUE="false" FIELDS="sourceid"/>
         <INDEX NAME="idx_sourceid_itemid" UNIQUE="false" FIELDS="sourceid,itemid"/>
+        <INDEX NAME="idx_type_sourceid_itemid" UNIQUE="false" FIELDS="type,sourceid,itemid"/>
       </INDEXES>
     </TABLE>
   </TABLES>
