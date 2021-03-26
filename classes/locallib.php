@@ -34,19 +34,22 @@ class locallib {
      */
     public static function load_descriptors($exacomp, $selection = array()) {
         $descriptors = array();
+        if (count($selection) == 0) return $descriptors;
         foreach ($exacomp->descriptors[0] as $xmldescriptor) {
-            $descriptoridnumber = $xmldescriptor['source'] . '_' . $xmldescriptor['id'];
-            $descriptoridnumber_array = array(
+            $topicidnumber = $xmldescriptor['source'] . '_' . $xmldescriptor['id'];
+            $topicidnumber_array = array(
                 'sourceid' => $xmldescriptor['source']->__toString(),
                 'id' => $xmldescriptor['id']->__toString(),
             );
-            if (count($selection) == 0 || in_array($descriptoridnumber, $selection)) {
-                $descriptors[$descriptoridnumber] = array(
-                    'idnumber' => $descriptoridnumber,
-                    'idnumber_array' => $descriptoridnumber_array,
+            if (in_array($topicidnumber, $selection)) {
+                $descriptors[$topicidnumber] = array(
+                    'idnumber' => $topicidnumber,
+                    'idnumber_array' => $topicidnumber_array,
+                    'type' => 'topic',
                     'sorting' => intval($xmldescriptor->sorting),
                     'title' => $xmldescriptor->title->__toString(),
                     'description' => $xmldescriptor->description->__toString(),
+                    'descriptors' => array(),
                 );
             }
 
@@ -57,10 +60,11 @@ class locallib {
                         'sourceid' => $xmlchilddescriptor['source']->__toString(),
                         'id' => $xmlchilddescriptor['id']->__toString(),
                     );
-                    if (count($selection) == 0 || in_array($descriptoridnumber, $selection)) {
-                        $descriptors[$descriptoridnumber] = array(
+                    if (in_array($descriptoridnumber, $selection)) {
+                        $descriptors[$topicidnumber]->descriptors[] = array(
                             'idnumber' => $descriptoridnumber,
                             'idnumber_array' => $descriptoridnumber_array,
+                            'type' => 'competency',
                             'sorting' => intval($xmlchilddescriptor->sorting),
                             'title' => $xmlchilddescriptor->title->__toString(),
                             'description' => $xmldescriptor->description->__toString(),
@@ -227,12 +231,15 @@ class locallib {
                     }
                     foreach ($xmlsubject->topics[0] as $xmltopic) {
                         $idnumber = $xmltopic['source'] . '_' . $xmltopic['id'];
+                        $idnumber_array = array(
+                            'sourceid' => $xmltopic['source']->__toString(),
+                            'id' => $xmltopic['id']->__toString(),
+                        );
                         $selection = array();
                         $descriptors = array();
                         foreach ($xmltopic->descriptors[0] as $xmldescriptor) {
                             $selection[] = $xmldescriptor['source'] . '_' . $xmldescriptor['id'];
                         }
-                        // If there are no descriptors in that topic we would load all...
                         if (count($selection) > 0) {
                             $descriptors = array_values(self::load_descriptors($exacomp, $selection));
                         }
@@ -362,10 +369,10 @@ class locallib {
                     'type' => 'success',
                     'content' => get_string('competencyframework:processing', 'local_komettranslator', array('shortname' => $fr->shortname, 'idnumber' => $fr->idnumber)),
                 ));
-
                 $topics = self::load_topics($exacomp, $mapping);
 
                 foreach ($topics as $topic) {
+                    $PARENTID = 0;
                     $mapping = self::mapping('topic', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id']);
                     if (!empty($mapping->id)) {
                         $ptopic = $DB->get_record('competency', array('id' => $mapping->internalid));
@@ -379,6 +386,7 @@ class locallib {
 
                     if (!empty($ptopic->id)) {
                         $ptopic->idnumber = md5($topic['idnumber']);
+                        $ptopic->parentid = $PARENTID;
                         $ptopic->shortname = mb_strimwidth($topic['shortname'], 0, 100, "...");
                         $ptopic->description = (!empty($topic['description']) ? $topic['description'] : $topic['shortname']);
                         $ptopic->sortorder = $topic['sorting'];
@@ -392,8 +400,7 @@ class locallib {
                             'description' => (!empty($topic['description']) ? $topic['description'] : $topic['shortname']),
                             'idnumber' => md5($topic['idnumber']),
                             'competencyframeworkid' => $fr->id,
-                            'parentid' => 0,
-                            'path' => $fr->contextid . '/' . $fr->id,
+                            'parentid' => $PARENTID,
                             'sortorder' => $topic['sorting'],
                             'timecreated' => time(),
                             'timemodified' => time(),
@@ -405,8 +412,10 @@ class locallib {
                     }
                     self::mapping('topic', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $ptopic->id);
                     if (!empty($ptopic->id)) {
+                        $PARENTID = $ptopic->id;
                         // Parent competency exists, proceed with descriptors.
                         foreach ($topic['descriptors'] as $sorting => $topic) {
+                            if ($fr->id == 49) echo "Topic: ".$topic['title']." / $PARENTID<br />";
                             $mapping = self::mapping('descriptor', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id']);
                             if (!empty($mapping->id)) {
                                 $comp = $DB->get_record('competency', array('id' => $mapping->internalid));
@@ -419,7 +428,9 @@ class locallib {
                             }
 
                             if (!empty($comp->id)) {
+                                $comp->competencyframeworkid = $fr->id;
                                 $comp->idnumber = md5($topic['idnumber']);
+                                $comp->parentid = $PARENTID;
                                 $comp->shortname = mb_strimwidth($topic['title'], 0, 100, "...");
                                 $comp->description = (!empty($topic['description']) ? $topic['description'] : $topic['title']);
                                 $comp->sortorder = $sorting;
@@ -433,8 +444,7 @@ class locallib {
                                     'description' => (!empty($topic['description']) ? $topic['description'] : $topic['title']),
                                     'idnumber' => md5($topic['idnumber']),
                                     'competencyframeworkid' => $fr->id,
-                                    'parentid' => $ptopic->id,
-                                    'path' => $fr->contextid . '/' . $fr->id . '/' . $ptopic->id,
+                                    'parentid' => $PARENTID,
                                     'sortorder' => $sorting,
                                     'timecreated' => time(),
                                     'timemodified' => time(),
@@ -451,6 +461,62 @@ class locallib {
                                 ));
                             } else {
                                 self::mapping('descriptor', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $comp->id);
+                            }
+
+                            if (!empty($topic->descriptors)) {
+                                $PARENTID = $comp->id;
+                                foreach ($topic->descriptors as $sorting => $topic) {
+                                    if ($fr->id == 49) echo "Descriptor: ".$topic['title']." / $PARENTID<br />";
+                                    $mapping = self::mapping('descriptor', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id']);
+                                    if (!empty($mapping->id)) {
+                                        $comp = $DB->get_record('competency', array('id' => $mapping->internalid));
+                                        if (empty($comp->id)) {
+                                            // Mapped a competency, that does not exist. remove mapping.
+                                            self::mapping('descriptor',  $mapping->sourceid, $mapping->itemid, 0, true);
+                                        }
+                                    } else {
+                                        $comp = (object)array();
+                                    }
+
+                                    if (!empty($comp->id)) {
+                                        $comp->competencyframeworkid = $fr->id;
+                                        $comp->idnumber = md5($topic['idnumber']);
+                                        $comp->parentid = $PARENTID;
+                                        $comp->shortname = mb_strimwidth($topic['title'], 0, 100, "...");
+                                        $comp->description = (!empty($topic['description']) ? $topic['description'] : $topic['title']);
+                                        $comp->sortorder = $sorting;
+                                        $comp->timemodified = time();
+                                        \core_competency\api::update_competency($comp);
+                                        // idnumber is not updated automatically, therefore we do this directly.
+                                        //echo "compare $comp->parentid to $ptopic->id<br />";
+                                        $DB->set_field('competency', 'idnumber', $comp->idnumber, array('id' => $comp->id));
+                                        $DB->set_field('competency', 'parentid', $PARENTID, array('id' => $comp->id));
+                                    } else {
+                                        $ocomp = (object) array(
+                                            'shortname' => mb_strimwidth($topic['title'], 0, 100, "..."),
+                                            'description' => (!empty($topic['description']) ? $topic['description'] : $topic['title']),
+                                            'idnumber' => md5($topic['idnumber']),
+                                            'competencyframeworkid' => $fr->id,
+                                            'parentid' => $PARENTID,
+                                            'path' => $fr->contextid . '/' . $fr->id . '/' . $PARENTID,
+                                            'sortorder' => $sorting,
+                                            'timecreated' => time(),
+                                            'timemodified' => time(),
+                                            'usermodified' => $USER->id,
+                                        );
+                                        $competency = \core_competency\api::create_competency($ocomp);
+                                        $competency = $DB->get_record('competency', array('idnumber' => md5($topic['idnumber'])));
+                                        $comp = $DB->get_record('competency', array('id' => $competency->id));
+                                    }
+                                    if (empty($comp->id)) {
+                                        echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                                            'type' => 'danger',
+                                            'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
+                                        ));
+                                    } else {
+                                        self::mapping('descriptor', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $comp->id);
+                                    }
+                                }
                             }
                         }
                     } else {
