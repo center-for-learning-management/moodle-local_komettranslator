@@ -34,14 +34,14 @@ class locallib {
      */
     public static function load_descriptors($exacomp, $selection = array()) {
         $descriptors = array();
-        if (count($selection) == 0) return $descriptors;
+
         foreach ($exacomp->descriptors[0] as $xmldescriptor) {
             $topicidnumber = $xmldescriptor['source'] . '_' . $xmldescriptor['id'];
             $topicidnumber_array = array(
                 'sourceid' => $xmldescriptor['source']->__toString(),
                 'id' => $xmldescriptor['id']->__toString(),
             );
-            if (in_array($topicidnumber, $selection)) {
+            if (empty($selection) || in_array($topicidnumber, $selection)) {
                 $descriptors[$topicidnumber] = array(
                     'idnumber' => $topicidnumber,
                     'idnumber_array' => $topicidnumber_array,
@@ -60,7 +60,10 @@ class locallib {
                         'sourceid' => $xmlchilddescriptor['source']->__toString(),
                         'id' => $xmlchilddescriptor['id']->__toString(),
                     );
-                    if (in_array($descriptoridnumber, $selection)) {
+                    if (empty($selection) || in_array($descriptoridnumber, $selection)) {
+                        if (!empty($descriptors[$topicidnumber])) {
+                            $descriptors[$topicidnumber] = (object) array();
+                        }
                         $descriptors[$topicidnumber]->descriptors[] = array(
                             'idnumber' => $descriptoridnumber,
                             'idnumber_array' => $descriptoridnumber_array,
