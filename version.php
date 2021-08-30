@@ -23,9 +23,9 @@
 
 defined('MOODLE_INTERNAL') || die;
 
-$plugin->version  = 2021031200;
+$plugin->version  = 2021083000;
 $plugin->requires = 2014051200;
 $plugin->component = 'local_komettranslator';
-$plugin->release = '0.2 (Build: 2021031200)';
+$plugin->release = '1.0 (Build: 2021083000)';
 $plugin->maturity = MATURITY_STABLE;
 $plugin->dependencies = array();
