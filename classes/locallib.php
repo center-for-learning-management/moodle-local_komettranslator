@@ -421,7 +421,7 @@ class locallib {
 
                 if (!empty($ptopic->id)) {
                     $ptopic->idnumber = $dbidnumber;
-                    $ptopic->parentid = $PARENTID;
+                    $ptopic->parentid = $node->id;
                     $ptopic->shortname = mb_strimwidth($topic['shortname'], 0, 100, "...");
                     $ptopic->description = (!empty($topic['description']) ? $topic['description'] : $topic['shortname']);
                     $ptopic->sortorder = $topic['sorting'];
@@ -435,7 +435,7 @@ class locallib {
                         'description' => (!empty($topic['description']) ? $topic['description'] : $topic['shortname']),
                         'idnumber' => $dbidnumber,
                         'competencyframeworkid' => $fr->id,
-                        'parentid' => $PARENTID,
+                        'parentid' => $node->id,
                         'sortorder' => $topic['sorting'],
                         'timecreated' => time(),
                         'timemodified' => time(),
@@ -455,8 +455,6 @@ class locallib {
 
 
                 if (!empty($ptopic->id)) {
-                    $PARENTID = $ptopic->id;
-
                     // Parent competency exists, proceed with descriptors.
                     foreach ($topic['descriptors'] as $sorting => $descriptor) {
                         $sourceid = $descriptor['idnumber_array']['sourceid'];
@@ -467,7 +465,7 @@ class locallib {
                         if (!empty($comp->id)) {
                             $comp->competencyframeworkid = $fr->id;
                             $comp->idnumber = $dbidnumber;
-                            $comp->parentid = $PARENTID;
+                            $comp->parentid = $ptopic->id;
                             $comp->shortname = mb_strimwidth($descriptor['title'], 0, 100, "...");
                             $comp->description = (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']);
                             $comp->sortorder = $sorting;
@@ -481,7 +479,7 @@ class locallib {
                                 'description' => (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']),
                                 'idnumber' => $dbidnumber,
                                 'competencyframeworkid' => $fr->id,
-                                'parentid' => $PARENTID,
+                                'parentid' => $ptopic->id,
                                 'sortorder' => $sorting,
                                 'timecreated' => time(),
                                 'timemodified' => time(),
@@ -501,34 +499,34 @@ class locallib {
                         }
 
                         if (!empty($descriptor['childdescriptors'])) {
-                            $PARENTID = $comp->id;
-                            foreach ($descriptor['childdescriptors'] as $sorting => $descriptor) {
-                                $sourceid = $descriptor['idnumber_array']['sourceid'];
-                                $id = $descriptor['idnumber_array']['id'];
+
+                            foreach ($descriptor['childdescriptors'] as $sorting => $childdescriptor) {
+                                $sourceid = $childdescriptor['idnumber_array']['sourceid'];
+                                $id = $childdescriptor['idnumber_array']['id'];
                                 $dbidnumber = md5($sourceid . '_' . $id);
 
-                                $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                                $childcomp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
 
-                                if (!empty($comp->id)) {
-                                    $comp->competencyframeworkid = $fr->id;
-                                    $comp->idnumber = $dbidnumber;
-                                    $comp->parentid = $PARENTID;
-                                    $comp->shortname = mb_strimwidth($descriptor['title'], 0, 100, "...");
-                                    $comp->description = (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']);
-                                    $comp->sortorder = $sorting;
-                                    $comp->timemodified = time();
-                                    \core_competency\api::update_competency($comp);
+                                if (!empty($childcomp->id)) {
+                                    $childcomp->competencyframeworkid = $fr->id;
+                                    $childcomp->idnumber = $dbidnumber;
+                                    $childcomp->parentid = $comp->id;
+                                    $childcomp->shortname = mb_strimwidth($childdescriptor['title'], 0, 100, "...");
+                                    $childcomp->description = (!empty($childdescriptor['description']) ? $childdescriptor['description'] : $childdescriptor['title']);
+                                    $childcomp->sortorder = $sorting;
+                                    $childcomp->timemodified = time();
+                                    \core_competency\api::update_competency($childcomp);
                                     // idnumber is not updated automatically, therefore we do this directly.
                                     //echo "compare $comp->parentid to $ptopic->id<br />";
-                                    $DB->set_field('competency', 'idnumber', $comp->idnumber, array('id' => $comp->id));
-                                    $DB->set_field('competency', 'parentid', $PARENTID, array('id' => $comp->id));
+                                    $DB->set_field('competency', 'idnumber', $childcomp->idnumber, array('id' => $childcomp->id));
+                                    $DB->set_field('competency', 'parentid', $comp->id, array('id' => $childcomp->id));
                                 } else {
                                     $ocomp = (object) array(
-                                        'shortname' => mb_strimwidth($descriptor['title'], 0, 100, "..."),
-                                        'description' => (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']),
+                                        'shortname' => mb_strimwidth($childdescriptor['title'], 0, 100, "..."),
+                                        'description' => (!empty($childdescriptor['description']) ? $childdescriptor['description'] : $childdescriptor['title']),
                                         'idnumber' => $dbidnumber,
                                         'competencyframeworkid' => $fr->id,
-                                        'parentid' => $PARENTID,
+                                        'parentid' => $comp->id,
                                         //'path' => $fr->contextid . '/' . $fr->id . '/' . $PARENTID,
                                         'sortorder' => $sorting,
                                         'timecreated' => time(),
@@ -536,16 +534,15 @@ class locallib {
                                         'usermodified' => $USER->id,
                                     );
                                     $competency = \core_competency\api::create_competency($ocomp);
-                                    $competency = $DB->get_record('competency', array('idnumber' => $dbidnumber));
-                                    $comp = $DB->get_record('competency', array('id' => $competency->id));
+                                    $childcomp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
                                 }
-                                if (empty($comp->id)) {
+                                if (empty($childcomp->id)) {
                                     echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
                                         'type' => 'danger',
-                                        'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
+                                        'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $childdescriptor['title'], 'idnumber' => $dbidnumber)),
                                     ));
                                 } else {
-                                    self::mapping('descriptor', $sourceid, $id, $comp->id);
+                                    self::mapping('descriptor', $sourceid, $id, $childcomp->id);
                                 }
                             }
                         }
