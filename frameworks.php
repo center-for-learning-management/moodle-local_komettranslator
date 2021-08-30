@@ -56,7 +56,7 @@ if (!is_siteadmin()) {
 // - examples --> contain examples for learning material to certain descriptors
 
 $exacomp = \local_komettranslator\locallib::load_from_xmlurl(false);
-$frameworks = \local_komettranslator\locallib::load_from_xml($exacomp, true, false);
+$frameworks = \local_komettranslator\locallib::load_frameworks($exacomp, true, false);
 
 echo $OUTPUT->render_from_template('local_komettranslator/frameworks', array('frameworks' => $frameworks, 'wwwroot' => $CFG->wwwroot));
 echo $OUTPUT->footer();

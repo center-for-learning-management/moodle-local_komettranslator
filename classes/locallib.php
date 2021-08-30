@@ -49,22 +49,17 @@ class locallib {
                     'sorting' => intval($xmldescriptor->sorting),
                     'title' => $xmldescriptor->title->__toString(),
                     'description' => $xmldescriptor->description->__toString(),
-                    'descriptors' => array(),
+                    'childdescriptors' => array(),
                 );
-            }
+                if (isset($xmldescriptor->children)) {
+                    foreach ($xmldescriptor->children[0] as $xmlchilddescriptor) {
+                        $descriptoridnumber = $xmlchilddescriptor['source'] . '_' . $xmlchilddescriptor['id'];
+                        $descriptoridnumber_array = array(
+                            'sourceid' => $xmlchilddescriptor['source']->__toString(),
+                            'id' => $xmlchilddescriptor['id']->__toString(),
+                        );
 
-            if (isset($xmldescriptor->children)) {
-                foreach ($xmldescriptor->children[0] as $xmlchilddescriptor) {
-                    $descriptoridnumber = $xmlchilddescriptor['source'] . '_' . $xmlchilddescriptor['id'];
-                    $descriptoridnumber_array = array(
-                        'sourceid' => $xmlchilddescriptor['source']->__toString(),
-                        'id' => $xmlchilddescriptor['id']->__toString(),
-                    );
-                    if (empty($selection) || in_array($descriptoridnumber, $selection)) {
-                        if (!empty($descriptors[$topicidnumber])) {
-                            $descriptors[$topicidnumber] = (object) array();
-                        }
-                        $descriptors[$topicidnumber]->descriptors[] = array(
+                        $descriptors[$topicidnumber]['childdescriptors'][] = array(
                             'idnumber' => $descriptoridnumber,
                             'idnumber_array' => $descriptoridnumber_array,
                             'type' => 'competency',
@@ -72,6 +67,7 @@ class locallib {
                             'title' => $xmlchilddescriptor->title->__toString(),
                             'description' => $xmldescriptor->description->__toString(),
                         );
+
                     }
                 }
             }
@@ -85,7 +81,7 @@ class locallib {
      * @param displaywarnings whether or not to display warnings.
      * @return array
      */
-    public static function load_from_xml($exacomp, $displayoutput = true, $displaywarnings = true) {
+    public static function load_frameworks($exacomp, $displayoutput = true, $displaywarnings = true) {
         global $OUTPUT;
         $frameworks = array();
         $imploder = ' >> ';
@@ -114,20 +110,24 @@ class locallib {
                             'sourceid' => $xmlsubject['source']->__toString(),
                             'id' => $xmlsubject['id']->__toString(),
                         ),
-                        'shortname' => $xmlsubject->title->__toString()
+                        'shortname' => $xmlsubject->title->__toString() . (!empty($xmlsubject->class) ? ' (' . $xmlsubject->class . ')' : '')
                     );
                     $idnumber = $xmlsubject['source'] . '_' . $xmlsubject['id'];
                     $idnumber_array = array(
                         'sourceid' => $xmlsubject['source']->__toString(),
                         'id' => $xmlsubject['id']->__toString(),
                     );
-                    $shortname = implode($imploder,
-                                    array(
-                                        $edulevel['shortname'],
-                                        $schooltype['shortname'],
-                                        $subject['shortname']
-                                    )
-                                );
+                    $idnumber_all_array = array(
+                        $edulevel['idnumber_array'],
+                        $schooltype['idnumber_array'],
+                        $subject['idnumber_array']
+                    );
+                    $shortname_array = array(
+                        $edulevel['shortname'],
+                        $schooltype['shortname'],
+                        $subject['shortname']
+                    );
+                    $shortname = implode($imploder, $shortname_array);
 
                     if (optional_param('enable', '', PARAM_TEXT) == $idnumber) {
                         set_config('isactive_' . $idnumber, 1, 'local_komettranslator');
@@ -150,8 +150,10 @@ class locallib {
                     $frameworks[] = array(
                         'idnumber' => $idnumber,
                         'idnumber_array' => $idnumber_array,
+                        'idnumber_all_array' => $idnumber_all_array,
                         'isactive' => get_config('local_komettranslator', 'isactive_' . $idnumber),
                         'shortname' => $shortname,
+                        'shortname_array' => $shortname_array,
                     );
                 }
             }
@@ -263,7 +265,7 @@ class locallib {
     }
     /**
      * Gets, sets or unsets a mapping.
-     * @param type topic, descriptor or subject
+     * @param type topic, descriptor, subject or framework
      * @param sourceid of komet
      * @param itemid of komet
      * @param internalid the internal id of framework or competency, 0 if we only want to get it
@@ -315,7 +317,7 @@ class locallib {
         require_once($CFG->dirroot . '/competency/classes/api.php');
 
         $exacomp = self::load_from_xmlurl($displaywarnings);
-        $frameworks = self::load_from_xml($exacomp, $displayoutput, $displaywarnings);
+        $frameworks = self::load_frameworks($exacomp, $displayoutput, $displaywarnings);
         $descriptors = self::load_descriptors($exacomp);
 
         // Now loop through frameworks. If they are enabled, sync meta-data and descriptors.
@@ -323,218 +325,237 @@ class locallib {
             if (empty($_framework['isactive'])) {
                 continue;
             }
-            $mapping = self::mapping('subject', $_framework['idnumber_array']['sourceid'], $_framework['idnumber_array']['id']);
 
-            if (!empty($mapping->id)) {
-                $fr = $DB->get_record('competency_framework', array('id' => $mapping->internalid));
-                if (empty($fr->id)) {
-                    // Mapped a competency, that does not exist. remove mapping.
-                    self::mapping('subject',  $mapping->sourceid, $mapping->itemid, 0, true);
-                }
-            } else {
-                $fr = (object)array();
-            }
+            $PARENTID = 0;
+            $shortnames = $_framework['shortname_array'];
+            $idnumbers = $_framework['idnumber_all_array'];
 
-            if (!empty($fr->id)) {
-                $fr->idnumber = md5($_framework['idnumber']);
-                $fr->shortname = mb_strimwidth($_framework['shortname'], 0, 100, "...");
-                $fr->timemodified = time();
-                $fr->usermodified = $USER->id;
-                // @TODO Scale configuration and taxonomies
-                \core_competency\api::update_framework($fr);
-                // idnumber is not updated automatically, therefore we do this directly.
-                $DB->set_field('competency_framework', 'idnumber', $fr->idnumber, array('id' => $fr->id));
-            } else {
-                $sysctx = \context_system::instance();
-                $oframework = (object) array(
-                    'contextid' => $sysctx->id,
-                    'description' => $_framework['shortname'],
-                    'idnumber' => md5($_framework['idnumber']),
-                    'shortname' => mb_strimwidth($_framework['shortname'], 0, 100, "..."),
-                    'scaleid' => 2,
-                    'scaleconfiguration' => '[{"scaleid":"2"},{"id":1,"scaledefault":1,"proficient":1},{"id":2,"scaledefault":0,"proficient":1}]',
-                    'taxonomies' => 'competency,competency,competency,competency',
-                    'visible' => 1,
-                    'timecreated' => time(),
-                    'timemodified' => time(),
-                    'usermodified' => $USER->id,
-                );
-                // @TODO Scale configuration and taxonomies
-                $framework = \core_competency\api::create_framework($oframework);
-                $framework = $DB->get_record('competency_framework', array('idnumber' => md5($_framework['idnumber'])));
-                $fr = $DB->get_record('competency_framework', array('id' => $framework->id));
-            }
+            for ($i = 0; $i < count($shortnames); $i++) {
+                $shortname = '' . $shortnames[$i];
+                $idnumber = $idnumbers[$i];
+                $sourceid = $idnumber['sourceid'];
+                $id = $idnumber['id'];
+                $dbidnumber = md5($sourceid . '_' . $id);
 
-            // Ensure that now a framework exists.
-            if (!empty($fr->id)) {
-                $mapping = self::mapping('subject', $_framework['idnumber_array']['sourceid'], $_framework['idnumber_array']['id'], $fr->id);
-                echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                    'type' => 'success',
-                    'content' => get_string('competencyframework:processing', 'local_komettranslator', array('shortname' => $fr->shortname, 'idnumber' => $fr->idnumber)),
-                ));
-                $topics = self::load_topics($exacomp, $mapping);
+                if ($i == 0) {
+                    // This is created as framework within Moodle
+                    //echo "Search mapping for framework $shortname<br />";
+                    $fr = $DB->get_record('competency_framework', array('idnumber' => $dbidnumber));
 
-                foreach ($topics as $topic) {
-                    $PARENTID = 0;
-                    $mapping = self::mapping('topic', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id']);
-                    if (!empty($mapping->id)) {
-                        $ptopic = $DB->get_record('competency', array('id' => $mapping->internalid));
-                        if (empty($ptopic->id)) {
-                            // Mapped a competency, that does not exist. remove mapping.
-                            self::mapping('topic',  $mapping->sourceid, $mapping->itemid, 0, true);
-                        }
-                    } else {
-                        $ptopic = (object)array();
-                    }
-
-                    if (!empty($ptopic->id)) {
-                        $ptopic->idnumber = md5($topic['idnumber']);
-                        $ptopic->parentid = $PARENTID;
-                        $ptopic->shortname = mb_strimwidth($topic['shortname'], 0, 100, "...");
-                        $ptopic->description = (!empty($topic['description']) ? $topic['description'] : $topic['shortname']);
-                        $ptopic->sortorder = $topic['sorting'];
-                        $ptopic->timemodified = time();
-                        \core_competency\api::update_competency($ptopic);
+                    if (!empty($fr->id)) {
+                        $fr->idnumber = $dbidnumber;
+                        $fr->shortname = mb_strimwidth($shortname, 0, 100, "...");
+                        $fr->timemodified = time();
+                        $fr->usermodified = $USER->id;
+                        // @TODO Scale configuration and taxonomies
+                        \core_competency\api::update_framework($fr);
                         // idnumber is not updated automatically, therefore we do this directly.
-                        $DB->set_field('competency', 'idnumber', $ptopic->idnumber, array('id' => $ptopic->id));
+                        $DB->set_field('competency_framework', 'idnumber', $fr->idnumber, array('id' => $fr->id));
                     } else {
-                        $otopic = (object) array(
-                            'shortname' => mb_strimwidth($topic['shortname'], 0, 100, "..."),
-                            'description' => (!empty($topic['description']) ? $topic['description'] : $topic['shortname']),
-                            'idnumber' => md5($topic['idnumber']),
-                            'competencyframeworkid' => $fr->id,
-                            'parentid' => $PARENTID,
-                            'sortorder' => $topic['sorting'],
+                        $sysctx = \context_system::instance();
+                        $oframework = (object) array(
+                            'contextid' => $sysctx->id,
+                            'description' => $shortname,
+                            'idnumber' => $dbidnumber,
+                            'shortname' => mb_strimwidth($shortname, 0, 100, "..."),
+                            'scaleid' => 2,
+                            'scaleconfiguration' => '[{"scaleid":"2"},{"id":1,"scaledefault":1,"proficient":1},{"id":2,"scaledefault":0,"proficient":1}]',
+                            'taxonomies' => 'competency,competency,competency,competency',
+                            'visible' => 1,
                             'timecreated' => time(),
                             'timemodified' => time(),
                             'usermodified' => $USER->id,
                         );
-                        $competency = \core_competency\api::create_competency($otopic);
-                        $competency = $DB->get_record('competency', array('idnumber' => md5($topic['idnumber'])));
-                        $ptopic = $DB->get_record('competency', array('id' => $competency->id));
+
+                        // @TODO Scale configuration and taxonomies
+                        $framework = \core_competency\api::create_framework($oframework);
+                        $framework = $DB->get_record('competency_framework', array('idnumber' => $dbidnumber));
+                        $fr = $DB->get_record('competency_framework', array('id' => $framework->id));
                     }
-                    self::mapping('topic', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $ptopic->id);
-                    if (!empty($ptopic->id)) {
-                        $PARENTID = $ptopic->id;
-                        // Parent competency exists, proceed with descriptors.
-                        foreach ($topic['descriptors'] as $sorting => $topic) {
-                            if ($fr->id == 49) echo "Topic: ".$topic['title']." / $PARENTID<br />";
-                            $mapping = self::mapping('descriptor', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id']);
-                            if (!empty($mapping->id)) {
-                                $comp = $DB->get_record('competency', array('id' => $mapping->internalid));
-                                if (empty($comp->id)) {
-                                    // Mapped a competency, that does not exist. remove mapping.
-                                    self::mapping('descriptor',  $mapping->sourceid, $mapping->itemid, 0, true);
+                    self::mapping('framework', $sourceid, $id, $fr->id);
+                } else {
+                    //echo "Search mapping for subject $shortname<br />";
+                    $node = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+
+                    if (!empty($node->id)) {
+                        $node->parentid = $PARENTID;
+                        $node->shortname = mb_strimwidth($shortname, 0, 100, "...");
+                        $node->description = $shortname;
+                        $node->timemodified = time();
+                        \core_competency\api::update_competency($node);
+                        // idnumber is not updated automatically, therefore we do this directly.
+                        $DB->set_field('competency', 'idnumber', $dbidnumber, array('id' => $node->id));
+                    } else {
+                        $onode = (object) array(
+                            'shortname' => mb_strimwidth($shortname, 0, 100, "..."),
+                            'description' => $shortname,
+                            'idnumber' => $dbidnumber,
+                            'competencyframeworkid' => $fr->id,
+                            'parentid' => $PARENTID,
+                            'sortorder' => 0,
+                            'timecreated' => time(),
+                            'timemodified' => time(),
+                            'usermodified' => $USER->id,
+                        );
+                        $competency = \core_competency\api::create_competency($onode);
+                        $competency = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                        $node = $DB->get_record('competency', array('id' => $competency->id));
+                    }
+                    $mapping = self::mapping('subject', $sourceid, $id, $node->id);
+                    $PARENTID = $node->id;
+                }
+            }
+
+            echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                'type' => 'success',
+                'content' => get_string('competencyframework:processing', 'local_komettranslator', array('shortname' => $shortname, 'idnumber' => $dbidnumber)),
+            ));
+            $topics = self::load_topics($exacomp, $mapping);
+
+            foreach ($topics as $topic) {
+                $sourceid = $topic['idnumber_array']['sourceid'];
+                $id = $topic['idnumber_array']['id'];
+                $dbidnumber = md5($sourceid . '_' . $id);
+
+                $ptopic = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+
+                if (!empty($ptopic->id)) {
+                    $ptopic->idnumber = $dbidnumber;
+                    $ptopic->parentid = $PARENTID;
+                    $ptopic->shortname = mb_strimwidth($topic['shortname'], 0, 100, "...");
+                    $ptopic->description = (!empty($topic['description']) ? $topic['description'] : $topic['shortname']);
+                    $ptopic->sortorder = $topic['sorting'];
+                    $ptopic->timemodified = time();
+                    \core_competency\api::update_competency($ptopic);
+                    // idnumber is not updated automatically, therefore we do this directly.
+                    $DB->set_field('competency', 'idnumber', $ptopic->idnumber, array('id' => $ptopic->id));
+                } else {
+                    $otopic = (object) array(
+                        'shortname' => mb_strimwidth($topic['shortname'], 0, 100, "..."),
+                        'description' => (!empty($topic['description']) ? $topic['description'] : $topic['shortname']),
+                        'idnumber' => $dbidnumber,
+                        'competencyframeworkid' => $fr->id,
+                        'parentid' => $PARENTID,
+                        'sortorder' => $topic['sorting'],
+                        'timecreated' => time(),
+                        'timemodified' => time(),
+                        'usermodified' => $USER->id,
+                    );
+                    $competency = \core_competency\api::create_competency($otopic);
+                    $ptopic = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                }
+                if (empty($ptopic->id)) {
+                    echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                        'type' => 'danger',
+                        'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $topic['shortname'], 'idnumber' => $dbidnumber)),
+                    ));
+                } else {
+                    self::mapping('topic', $sourceid, $id, $ptopic->id);
+                }
+
+
+                if (!empty($ptopic->id)) {
+                    $PARENTID = $ptopic->id;
+
+                    // Parent competency exists, proceed with descriptors.
+                    foreach ($topic['descriptors'] as $sorting => $descriptor) {
+                        $sourceid = $descriptor['idnumber_array']['sourceid'];
+                        $id = $descriptor['idnumber_array']['id'];
+                        $dbidnumber = md5($sourceid . '_' . $id);
+
+                        $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                        if (!empty($comp->id)) {
+                            $comp->competencyframeworkid = $fr->id;
+                            $comp->idnumber = $dbidnumber;
+                            $comp->parentid = $PARENTID;
+                            $comp->shortname = mb_strimwidth($descriptor['title'], 0, 100, "...");
+                            $comp->description = (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']);
+                            $comp->sortorder = $sorting;
+                            $comp->timemodified = time();
+                            \core_competency\api::update_competency($comp);
+                            // idnumber is not updated automatically, therefore we do this directly.
+                            $DB->set_field('competency', 'idnumber', $comp->idnumber, array('id' => $comp->id));
+                        } else {
+                            $ocomp = (object) array(
+                                'shortname' => mb_strimwidth($descriptor['title'], 0, 100, "..."),
+                                'description' => (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']),
+                                'idnumber' => $dbidnumber,
+                                'competencyframeworkid' => $fr->id,
+                                'parentid' => $PARENTID,
+                                'sortorder' => $sorting,
+                                'timecreated' => time(),
+                                'timemodified' => time(),
+                                'usermodified' => $USER->id,
+                            );
+                            $competency = \core_competency\api::create_competency($ocomp);
+                            $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                        }
+
+                        if (empty($comp->id)) {
+                            echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                                'type' => 'danger',
+                                'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $descriptor['title'], 'idnumber' => $dbidnumber)),
+                            ));
+                        } else {
+                            self::mapping('descriptor', $sourceid, $id, $comp->id);
+                        }
+
+                        if (!empty($descriptor['childdescriptors'])) {
+                            $PARENTID = $comp->id;
+                            foreach ($descriptor['childdescriptors'] as $sorting => $descriptor) {
+                                $sourceid = $descriptor['idnumber_array']['sourceid'];
+                                $id = $descriptor['idnumber_array']['id'];
+                                $dbidnumber = md5($sourceid . '_' . $id);
+
+                                $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+
+                                if (!empty($comp->id)) {
+                                    $comp->competencyframeworkid = $fr->id;
+                                    $comp->idnumber = $dbidnumber;
+                                    $comp->parentid = $PARENTID;
+                                    $comp->shortname = mb_strimwidth($descriptor['title'], 0, 100, "...");
+                                    $comp->description = (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']);
+                                    $comp->sortorder = $sorting;
+                                    $comp->timemodified = time();
+                                    \core_competency\api::update_competency($comp);
+                                    // idnumber is not updated automatically, therefore we do this directly.
+                                    //echo "compare $comp->parentid to $ptopic->id<br />";
+                                    $DB->set_field('competency', 'idnumber', $comp->idnumber, array('id' => $comp->id));
+                                    $DB->set_field('competency', 'parentid', $PARENTID, array('id' => $comp->id));
+                                } else {
+                                    $ocomp = (object) array(
+                                        'shortname' => mb_strimwidth($descriptor['title'], 0, 100, "..."),
+                                        'description' => (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']),
+                                        'idnumber' => $dbidnumber,
+                                        'competencyframeworkid' => $fr->id,
+                                        'parentid' => $PARENTID,
+                                        //'path' => $fr->contextid . '/' . $fr->id . '/' . $PARENTID,
+                                        'sortorder' => $sorting,
+                                        'timecreated' => time(),
+                                        'timemodified' => time(),
+                                        'usermodified' => $USER->id,
+                                    );
+                                    $competency = \core_competency\api::create_competency($ocomp);
+                                    $competency = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                                    $comp = $DB->get_record('competency', array('id' => $competency->id));
                                 }
-                            } else {
-                                $comp = (object)array();
-                            }
-
-                            if (!empty($comp->id)) {
-                                $comp->competencyframeworkid = $fr->id;
-                                $comp->idnumber = md5($topic['idnumber']);
-                                $comp->parentid = $PARENTID;
-                                $comp->shortname = mb_strimwidth($topic['title'], 0, 100, "...");
-                                $comp->description = (!empty($topic['description']) ? $topic['description'] : $topic['title']);
-                                $comp->sortorder = $sorting;
-                                $comp->timemodified = time();
-                                \core_competency\api::update_competency($comp);
-                                // idnumber is not updated automatically, therefore we do this directly.
-                                $DB->set_field('competency', 'idnumber', $comp->idnumber, array('id' => $comp->id));
-                            } else {
-                                $ocomp = (object) array(
-                                    'shortname' => mb_strimwidth($topic['title'], 0, 100, "..."),
-                                    'description' => (!empty($topic['description']) ? $topic['description'] : $topic['title']),
-                                    'idnumber' => md5($topic['idnumber']),
-                                    'competencyframeworkid' => $fr->id,
-                                    'parentid' => $PARENTID,
-                                    'sortorder' => $sorting,
-                                    'timecreated' => time(),
-                                    'timemodified' => time(),
-                                    'usermodified' => $USER->id,
-                                );
-                                $competency = \core_competency\api::create_competency($ocomp);
-                                $competency = $DB->get_record('competency', array('idnumber' => md5($topic['idnumber'])));
-                                $comp = $DB->get_record('competency', array('id' => $competency->id));
-                            }
-                            if (empty($comp->id)) {
-                                echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                                    'type' => 'danger',
-                                    'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
-                                ));
-                            } else {
-                                self::mapping('descriptor', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $comp->id);
-                            }
-
-                            if (!empty($topic->descriptors)) {
-                                $PARENTID = $comp->id;
-                                foreach ($topic->descriptors as $sorting => $topic) {
-                                    if ($fr->id == 49) echo "Descriptor: ".$topic['title']." / $PARENTID<br />";
-                                    $mapping = self::mapping('descriptor', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id']);
-                                    if (!empty($mapping->id)) {
-                                        $comp = $DB->get_record('competency', array('id' => $mapping->internalid));
-                                        if (empty($comp->id)) {
-                                            // Mapped a competency, that does not exist. remove mapping.
-                                            self::mapping('descriptor',  $mapping->sourceid, $mapping->itemid, 0, true);
-                                        }
-                                    } else {
-                                        $comp = (object)array();
-                                    }
-
-                                    if (!empty($comp->id)) {
-                                        $comp->competencyframeworkid = $fr->id;
-                                        $comp->idnumber = md5($topic['idnumber']);
-                                        $comp->parentid = $PARENTID;
-                                        $comp->shortname = mb_strimwidth($topic['title'], 0, 100, "...");
-                                        $comp->description = (!empty($topic['description']) ? $topic['description'] : $topic['title']);
-                                        $comp->sortorder = $sorting;
-                                        $comp->timemodified = time();
-                                        \core_competency\api::update_competency($comp);
-                                        // idnumber is not updated automatically, therefore we do this directly.
-                                        //echo "compare $comp->parentid to $ptopic->id<br />";
-                                        $DB->set_field('competency', 'idnumber', $comp->idnumber, array('id' => $comp->id));
-                                        $DB->set_field('competency', 'parentid', $PARENTID, array('id' => $comp->id));
-                                    } else {
-                                        $ocomp = (object) array(
-                                            'shortname' => mb_strimwidth($topic['title'], 0, 100, "..."),
-                                            'description' => (!empty($topic['description']) ? $topic['description'] : $topic['title']),
-                                            'idnumber' => md5($topic['idnumber']),
-                                            'competencyframeworkid' => $fr->id,
-                                            'parentid' => $PARENTID,
-                                            'path' => $fr->contextid . '/' . $fr->id . '/' . $PARENTID,
-                                            'sortorder' => $sorting,
-                                            'timecreated' => time(),
-                                            'timemodified' => time(),
-                                            'usermodified' => $USER->id,
-                                        );
-                                        $competency = \core_competency\api::create_competency($ocomp);
-                                        $competency = $DB->get_record('competency', array('idnumber' => md5($topic['idnumber'])));
-                                        $comp = $DB->get_record('competency', array('id' => $competency->id));
-                                    }
-                                    if (empty($comp->id)) {
-                                        echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                                            'type' => 'danger',
-                                            'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
-                                        ));
-                                    } else {
-                                        self::mapping('descriptor', $topic['idnumber_array']['sourceid'], $topic['idnumber_array']['id'], $comp->id);
-                                    }
+                                if (empty($comp->id)) {
+                                    echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                                        'type' => 'danger',
+                                        'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
+                                    ));
+                                } else {
+                                    self::mapping('descriptor', $sourceid, $id, $comp->id);
                                 }
                             }
                         }
-                    } else {
-                        echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                            'type' => 'danger',
-                            'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
-                        ));
                     }
+                } else {
+                    echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                        'type' => 'danger',
+                        'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
+                    ));
                 }
-
-            } elseif ($displaywarnings) {
-                echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                    'type' => 'danger',
-                    'content' => get_string('competencyframework:notcreated', 'local_komettranslator', array('shortname' => $fr->shortname, 'idnumber' => $fr->idnumber)),
-                ));
             }
 
         }
