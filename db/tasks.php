@@ -15,17 +15,22 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * @package    local_komettranslator
- * @copyright  2020 Zentrum für Lernmanagement (www.lernmanagement.at)
- * @author    Robert Schrenk
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+* @package    local_komettranslator
+* @copyright  2022 Center for Learningmanagement (https://www.lernmanagement.at)
+* @author     Robert Schrenk
+* @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+*/
 
 defined('MOODLE_INTERNAL') || die;
 
-$plugin->version  = 2022032300;
-$plugin->requires = 2014051200;
-$plugin->component = 'local_komettranslator';
-$plugin->release = '1.0 (Build: 2021083000)';
-$plugin->maturity = MATURITY_STABLE;
-$plugin->dependencies = array();
+$tasks = array(
+    array(
+        'classname' => 'local_komettranslator\task\import',
+        'blocking' => 0,
+        'minute' => '0',
+        'hour' => '1',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*',
+    ),
+);

@@ -25,7 +25,7 @@ namespace local_komettranslator\task;
 
 defined('MOODLE_INTERNAL') || die;
 
-class local_komettranslator_cron extends \core\task\scheduled_task {
+class import extends \core\task\scheduled_task {
     public function get_name() {
         // Shown in admin screens.
         return get_string('cron:title', 'local_komettranslator');
@@ -33,11 +33,6 @@ class local_komettranslator_cron extends \core\task\scheduled_task {
 
     public function execute() {
         global $DB;
-
-        // Grab the XML.
-
-        // Synchronise activated competency frameworks.
-
-
+        \local_komettranslator\locallib::runsync(false, false);
     }
 }
