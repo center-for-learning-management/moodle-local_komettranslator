@@ -406,10 +406,13 @@ class locallib {
                 }
             }
 
-            echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                'type' => 'success',
-                'content' => get_string('competencyframework:processing', 'local_komettranslator', array('shortname' => $shortname, 'idnumber' => $dbidnumber)),
-            ));
+            if ($displayoutput) {
+                echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                    'type' => 'success',
+                    'content' => get_string('competencyframework:processing', 'local_komettranslator', array('shortname' => $shortname, 'idnumber' => $dbidnumber)),
+                ));
+            }
+
             $topics = self::load_topics($exacomp, $mapping);
 
             foreach ($topics as $topic) {
@@ -490,16 +493,17 @@ class locallib {
                         }
 
                         if (empty($comp->id)) {
-                            echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                                'type' => 'danger',
-                                'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $descriptor['title'], 'idnumber' => $dbidnumber)),
-                            ));
+                            if ($displaywarnings) {
+                                echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                                    'type' => 'danger',
+                                    'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $descriptor['title'], 'idnumber' => $dbidnumber)),
+                                ));
+                            }
                         } else {
                             self::mapping('descriptor', $sourceid, $id, $comp->id);
                         }
 
                         if (!empty($descriptor['childdescriptors'])) {
-
                             foreach ($descriptor['childdescriptors'] as $sorting => $childdescriptor) {
                                 $sourceid = $childdescriptor['idnumber_array']['sourceid'];
                                 $id = $childdescriptor['idnumber_array']['id'];
@@ -537,25 +541,25 @@ class locallib {
                                     $childcomp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
                                 }
                                 if (empty($childcomp->id)) {
-                                    echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                                        'type' => 'danger',
-                                        'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $childdescriptor['title'], 'idnumber' => $dbidnumber)),
-                                    ));
+                                    if ($displaywarnings) {
+                                        echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                                            'type' => 'danger',
+                                            'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $childdescriptor['title'], 'idnumber' => $dbidnumber)),
+                                        ));
+                                    }
                                 } else {
                                     self::mapping('descriptor', $sourceid, $id, $childcomp->id);
                                 }
                             }
                         }
                     }
-                } else {
+                } else if ($displaywarnings) {
                     echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
                         'type' => 'danger',
                         'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
                     ));
                 }
             }
-
         }
-
     }
 }
