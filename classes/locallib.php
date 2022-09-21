@@ -178,12 +178,15 @@ class locallib {
             die();
         }
 
-        $ch = curl_init();
-        curl_setopt( $ch, CURLOPT_AUTOREFERER, TRUE );
-        curl_setopt( $ch, CURLOPT_HEADER, 0 );
-        curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-        curl_setopt( $ch, CURLOPT_URL, $xmlurl );
-        curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, TRUE );
+        global $CFG;
+        require_once("$CFG->dirroot/lib/filelib.php");
+
+        if ($displaywarnings) {
+            echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                'type' => 'info',
+                'content' => get_string('xmlurl:loading', 'local_komettranslator', array('xmlurl' => $xmlurl)),
+            ));
+        }
 
         $sslverify = get_config('local_komettranslator', 'xmlurlsslverify');
         if (empty($sslverify)) {
@@ -193,22 +196,14 @@ class locallib {
                     'content' => get_string('xmlurl:verifypeer:warning', 'local_komettranslator'),
                 ));
             }
-
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         }
+        $sslskipverify = empty($sslverify) ? true : false;
 
-        if ($displaywarnings) {
-            echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                'type' => 'info',
-                'content' => get_string('xmlurl:loading', 'local_komettranslator', array('xmlurl' => $xmlurl)),
-            ));
+        $fullresponse = download_file_content($xmlurl, null, null, true, 300, 20, $sslskipverify);
+        if (!empty($fullresponse->results)) {
+            return new \SimpleXMLElement($fullresponse->results);
         }
-
-        $xmlstr = curl_exec($ch);
-        curl_close($ch);
-
-        return new \SimpleXMLElement($xmlstr);
+        return false;
     }
     /**
      * Load the framework structure and perform enabling and disabling.
