@@ -38,8 +38,8 @@ class locallib {
         foreach ($exacomp->descriptors[0] as $xmldescriptor) {
             $topicidnumber = $xmldescriptor['source'] . '_' . $xmldescriptor['id'];
             $topicidnumber_array = array(
-                'sourceid' => $xmldescriptor['source']->__toString(),
-                'id' => $xmldescriptor['id']->__toString(),
+                'sourceid' => (string)$xmldescriptor['source'],
+                'id' => (string)$xmldescriptor['id'],
             );
             if (empty($selection) || in_array($topicidnumber, $selection)) {
                 $descriptors[$topicidnumber] = array(
@@ -47,16 +47,18 @@ class locallib {
                     'idnumber_array' => $topicidnumber_array,
                     'type' => 'topic',
                     'sorting' => intval($xmldescriptor->sorting),
-                    'title' => $xmldescriptor->title->__toString(),
-                    'description' => $xmldescriptor->description->__toString(),
+                    'title' => (string)$xmldescriptor->title,
+                    'description' => (string)$xmldescriptor->description,
+                    'niveauid' => (string)$xmldescriptor->niveauid['id'],
+                    'skillid' => (string)$xmldescriptor->skillid['id'],
                     'childdescriptors' => array(),
                 );
                 if (isset($xmldescriptor->children)) {
                     foreach ($xmldescriptor->children[0] as $xmlchilddescriptor) {
                         $descriptoridnumber = $xmlchilddescriptor['source'] . '_' . $xmlchilddescriptor['id'];
                         $descriptoridnumber_array = array(
-                            'sourceid' => $xmlchilddescriptor['source']->__toString(),
-                            'id' => $xmlchilddescriptor['id']->__toString(),
+                            'sourceid' => (string)$xmlchilddescriptor['source'],
+                            'id' => (string)$xmlchilddescriptor['id'],
                         );
 
                         $descriptors[$topicidnumber]['childdescriptors'][] = array(
@@ -64,8 +66,10 @@ class locallib {
                             'idnumber_array' => $descriptoridnumber_array,
                             'type' => 'competency',
                             'sorting' => intval($xmlchilddescriptor->sorting),
-                            'title' => $xmlchilddescriptor->title->__toString(),
-                            'description' => $xmldescriptor->description->__toString(),
+                            'title' => (string)$xmlchilddescriptor->title,
+                            'description' => (string)$xmlchilddescriptor->description,
+                            'niveauid' => (string)$xmlchilddescriptor->niveauid['id'],
+                            'skillid' => (string)$xmlchilddescriptor->skillid['id'],
                         );
 
                     }

@@ -52,6 +52,11 @@ $exacomp = \local_komettranslator\locallib::load_from_xmlurl(false);
 $descriptors = \local_komettranslator\locallib::load_descriptors($exacomp);
 
 
+$niveaus = [];
+foreach ($exacomp->niveaus->niveau as $niveau) {
+    $niveaus[(string)$niveau['id']] = (string)$niveau->title;
+}
+
 $framework = array();
 foreach ($exacomp->edulevels[0] as $xmledulevel) {
     foreach ($xmledulevel->schooltypes[0] as $xmlschooltype) {
@@ -65,29 +70,29 @@ foreach ($exacomp->edulevels[0] as $xmledulevel) {
                 'topics' => array(),
             );
             foreach ($xmlsubject->topics[0] as $xmltopic) {
-                $topic = array(
+                $topic = (object)[
                     'idnumber' => $xmltopic['source'] . '_' . $xmltopic['id'],
                     'shortname' => $xmltopic->title->__toString(),
                     'descriptors' => array(),
-                );
-                $dlist = array();
+                ];
+                $framework['topics'][] = $topic;
+
                 foreach ($xmltopic->descriptors[0] as $xmldescriptor) {
                     $descriptoridnumber = $xmldescriptor['source'] . '_' . $xmldescriptor['id'];
                     if (empty($descriptors[$descriptoridnumber])) {
                         //echo "ERROR: MISSING DESCRIPTOR FOR $descriptoridnumber<br />";
                         continue;
                     }
-                    $dlist[$descriptors[$descriptoridnumber]['sorting']] = array(
-                        'idnumber' => $descriptoridnumber,
-                        'title' => $descriptors[$descriptoridnumber]['title'],
-                    );
+
+                    $descriptors[$descriptoridnumber]['niveau'] = $niveaus[$descriptors[$descriptoridnumber]['niveauid']] ?? '';
+
+                    $topic->descriptors[] = $descriptors[$descriptoridnumber];
                 }
-                sort($dlist);
-                //print_r($dlist);
-                foreach ($dlist as $el) {
-                    $topic['descriptors'][] = $el;
-                }
-                $framework['topics'][] = $topic;
+
+                // eigentlich nicht notwendig, weil der komet export schon sortiert ist!
+                usort($topic->descriptors, function($a, $b) {
+                    return $a['sorting'] - $b['sorting'];
+                });
             }
         }
     }
