@@ -74,6 +74,7 @@ class locallib {
         }
         return $descriptors;
     }
+
     /**
      * Load the framework structure and perform enabling and disabling.
      * @param exacomp SimpleXMLElement from exacomp
@@ -92,7 +93,7 @@ class locallib {
                     'sourceid' => $xmledulevel['source']->__toString(),
                     'id' => $xmledulevel['id']->__toString(),
                 ),
-                'shortname' => $xmledulevel->title
+                'shortname' => $xmledulevel->title,
             );
             foreach ($xmledulevel->schooltypes[0] as $xmlschooltype) {
                 $schooltype = array(
@@ -101,7 +102,7 @@ class locallib {
                         'sourceid' => $xmlschooltype['source']->__toString(),
                         'id' => $xmlschooltype['id']->__toString(),
                     ),
-                    'shortname' => $xmlschooltype->title
+                    'shortname' => $xmlschooltype->title,
                 );
                 foreach ($xmlschooltype->subjects[0] as $xmlsubject) {
                     $subject = array(
@@ -110,7 +111,7 @@ class locallib {
                             'sourceid' => $xmlsubject['source']->__toString(),
                             'id' => $xmlsubject['id']->__toString(),
                         ),
-                        'shortname' => $xmlsubject->title->__toString() . (!empty($xmlsubject->class) ? ' (' . $xmlsubject->class . ')' : '')
+                        'shortname' => $xmlsubject->title->__toString() . (!empty($xmlsubject->class) ? ' (' . $xmlsubject->class . ')' : ''),
                     );
                     $idnumber = $xmlsubject['source'] . '_' . $xmlsubject['id'];
                     $idnumber_array = array(
@@ -120,12 +121,12 @@ class locallib {
                     $idnumber_all_array = array(
                         $edulevel['idnumber_array'],
                         $schooltype['idnumber_array'],
-                        $subject['idnumber_array']
+                        $subject['idnumber_array'],
                     );
                     $shortname_array = array(
                         $edulevel['shortname'],
                         $schooltype['shortname'],
-                        $subject['shortname']
+                        $subject['shortname'],
                     );
                     $shortname = implode($imploder, $shortname_array);
 
@@ -160,6 +161,7 @@ class locallib {
         }
         return $frameworks;
     }
+
     /**
      * Load the xml-file from xmlurl.
      * @param displaywarnings whether or not to display warnings.
@@ -205,6 +207,7 @@ class locallib {
         }
         return false;
     }
+
     /**
      * Load the framework structure and perform enabling and disabling.
      * @param exacomp SimpleXMLElement from exacomp
@@ -258,6 +261,7 @@ class locallib {
         }
         return $topics;
     }
+
     /**
      * Gets, sets or unsets a mapping.
      * @param type topic, descriptor, subject or framework
@@ -265,7 +269,7 @@ class locallib {
      * @param itemid of komet
      * @param internalid the internal id of framework or competency, 0 if we only want to get it
      * @param remove whether or not to remove this mapping.
-    **/
+     **/
     public static function mapping($type, $sourceid, $itemid, $internalid = 0, $remove = false) {
         global $DB;
         if ($remove) {
@@ -274,7 +278,7 @@ class locallib {
             $mapping = $DB->get_record('local_komettranslator', array('type' => $type, 'sourceid' => $sourceid, 'itemid' => $itemid));
             if (empty($mapping->id)) {
                 if (!empty($internalid)) {
-                    $mapping = (object) array(
+                    $mapping = (object)array(
                         'type' => $type,
                         'sourceid' => $sourceid,
                         'itemid' => $itemid,
@@ -294,6 +298,7 @@ class locallib {
             return $mapping;
         }
     }
+
     /**
      * Get mapping based on internalid of table competency or competency_framework.
      */
@@ -301,6 +306,7 @@ class locallib {
         global $DB;
         return $DB->get_record('local_komettranslator', array('type' => $type, 'internalid' => $internalid));
     }
+
     /**
      * Run a full sync.
      * @param displayoutput whether or not to display normal output messages.
@@ -348,7 +354,7 @@ class locallib {
                         $DB->set_field('competency_framework', 'idnumber', $fr->idnumber, array('id' => $fr->id));
                     } else {
                         $sysctx = \context_system::instance();
-                        $oframework = (object) array(
+                        $oframework = (object)array(
                             'contextid' => $sysctx->id,
                             'description' => $shortname,
                             'idnumber' => $dbidnumber,
@@ -381,7 +387,7 @@ class locallib {
                         // idnumber is not updated automatically, therefore we do this directly.
                         $DB->set_field('competency', 'idnumber', $dbidnumber, array('id' => $node->id));
                     } else {
-                        $onode = (object) array(
+                        $onode = (object)array(
                             'shortname' => mb_strimwidth($shortname, 0, 100, "..."),
                             'description' => $shortname,
                             'idnumber' => $dbidnumber,
@@ -428,7 +434,7 @@ class locallib {
                     // idnumber is not updated automatically, therefore we do this directly.
                     $DB->set_field('competency', 'idnumber', $ptopic->idnumber, array('id' => $ptopic->id));
                 } else {
-                    $otopic = (object) array(
+                    $otopic = (object)array(
                         'shortname' => mb_strimwidth($topic['shortname'], 0, 100, "..."),
                         'description' => (!empty($topic['description']) ? $topic['description'] : $topic['shortname']),
                         'idnumber' => $dbidnumber,
@@ -472,7 +478,7 @@ class locallib {
                             // idnumber is not updated automatically, therefore we do this directly.
                             $DB->set_field('competency', 'idnumber', $comp->idnumber, array('id' => $comp->id));
                         } else {
-                            $ocomp = (object) array(
+                            $ocomp = (object)array(
                                 'shortname' => mb_strimwidth($descriptor['title'], 0, 100, "..."),
                                 'description' => (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']),
                                 'idnumber' => $dbidnumber,
@@ -520,7 +526,7 @@ class locallib {
                                     $DB->set_field('competency', 'idnumber', $childcomp->idnumber, array('id' => $childcomp->id));
                                     $DB->set_field('competency', 'parentid', $comp->id, array('id' => $childcomp->id));
                                 } else {
-                                    $ocomp = (object) array(
+                                    $ocomp = (object)array(
                                         'shortname' => mb_strimwidth($childdescriptor['title'], 0, 100, "..."),
                                         'description' => (!empty($childdescriptor['description']) ? $childdescriptor['description'] : $childdescriptor['title']),
                                         'idnumber' => $dbidnumber,

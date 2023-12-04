@@ -24,7 +24,7 @@
 defined('MOODLE_INTERNAL') || die;
 
 if ($hassiteconfig) {
-    $settings = new admin_settingpage( 'local_komettranslator_settings', get_string('pluginname:settings', 'local_komettranslator'));
+    $settings = new admin_settingpage('local_komettranslator_settings', get_string('pluginname:settings', 'local_komettranslator'));
     $ADMIN->add('localplugins', new admin_category('local_komettranslator', get_string('pluginname', 'local_komettranslator')));
     $ADMIN->add('local_komettranslator', $settings);
     $settings->add(new admin_setting_configtext('local_komettranslator/xmlurl', get_string('xmlurl', 'local_komettranslator'), get_string('xmlurl:description', 'local_komettranslator'), "", PARAM_URL));

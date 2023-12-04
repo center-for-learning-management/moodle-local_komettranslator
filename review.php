@@ -62,7 +62,7 @@ foreach ($exacomp->edulevels[0] as $xmledulevel) {
             }
             $framework = array(
                 'title' => $xmlsubject->title->__toString(),
-                'topics' => array()
+                'topics' => array(),
             );
             foreach ($xmlsubject->topics[0] as $xmltopic) {
                 $topic = array(

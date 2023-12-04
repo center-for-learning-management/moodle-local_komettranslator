@@ -15,15 +15,15 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
-* @package    local_komettranslator
-* @copyright  2020 Center for Learningmanagement (https://www.lernmanagement.at)
-* @author     Robert Schrenk
-* @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
-*/
+ * @package    local_komettranslator
+ * @copyright  2020 Center for Learningmanagement (https://www.lernmanagement.at)
+ * @author     Robert Schrenk
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
 defined('MOODLE_INTERNAL') || die;
 
-function xmldb_local_komettranslator_upgrade($oldversion=0) {
+function xmldb_local_komettranslator_upgrade($oldversion = 0) {
     global $DB;
     $dbman = $DB->get_manager();
 
