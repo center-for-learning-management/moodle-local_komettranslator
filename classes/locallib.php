@@ -311,6 +311,46 @@ class locallib {
         return $DB->get_record('local_komettranslator', array('type' => $type, 'internalid' => $internalid));
     }
 
+    private static function update_competency($comp, $data) {
+        global $DB;
+
+        $old_comp = clone $comp;
+        foreach ($data as $key => $value) {
+            // convert to string, because db row is always string
+            $comp->$key = $value === null ? null : (string)$value;
+        }
+
+        if (json_encode($old_comp) === json_encode($comp)) {
+            return;
+        }
+
+        // echo 'update!! ';
+
+        // var_dump([$old_comp, $comp]);
+        // echo "\n" . json_encode($old_comp) . "\n" . json_encode($comp);
+        // exit;
+
+        $comp->timemodified = time();
+        \core_competency\api::update_competency($comp);
+
+        // use $data instead of $comp, because $comp properties are overwritten in update_competency()
+
+        // idnumber is not updated automatically, therefore we do this directly.
+        $DB->set_field('competency', 'idnumber', $data->idnumber, array('id' => $comp->id));
+
+        if ($data->sortorder && $old_comp->sortorder != $data->sortorder) {
+            $DB->set_field('competency', 'sortorder', $data->sortorder, array('id' => $comp->id));
+        }
+
+        if ($data->parentid && $old_comp->parentid != $data->parentid) {
+            $DB->set_field('competency', 'parentid', $data->parentid, array('id' => $comp->id));
+        }
+
+        if ($data->competencyframeworkid && $old_comp->competencyframeworkid != $data->competencyframeworkid) {
+            $DB->set_field('competency', 'competencyframeworkid', $data->competencyframeworkid, array('id' => $comp->id));
+        }
+    }
+
     /**
      * Run a full sync.
      * @param displayoutput whether or not to display normal output messages.
@@ -323,7 +363,25 @@ class locallib {
 
         $exacomp = self::load_from_xmlurl($displaywarnings);
         $frameworks = self::load_frameworks($exacomp, $displayoutput, $displaywarnings);
-        $descriptors = self::load_descriptors($exacomp);
+        // $descriptors = self::load_descriptors($exacomp);
+
+        $niveaus = [];
+        foreach ($exacomp->niveaus->niveau as $niveau) {
+            $niveaus[(string)$niveau['id']] = (string)$niveau->title;
+        }
+
+        $format_name_and_description = function($data, $xmlComp) use ($niveaus) {
+            if (!$xmlComp['niveauid'] || empty($niveaus[$xmlComp['niveauid']])) {
+                $niveau_short = '';
+                $niveau_long = '';
+            } else {
+                $niveau_short = ' (' . mb_strimwidth($niveaus[$xmlComp['niveauid']], 0, 40, "...") . ')';
+                $niveau_long = ' (' . $niveaus[$xmlComp['niveauid']] . ')';
+            }
+
+            $data->shortname = mb_strimwidth($data->shortname, 0, 100 - strlen($niveau_short), "...") . $niveau_short;
+            $data->description .= $niveau_long;
+        };
 
         // Now loop through frameworks. If they are enabled, sync meta-data and descriptors.
         foreach ($frameworks as $_framework) {
@@ -383,13 +441,12 @@ class locallib {
                     $node = $DB->get_record('competency', array('idnumber' => $dbidnumber));
 
                     if (!empty($node->id)) {
-                        $node->parentid = $PARENTID;
-                        $node->shortname = mb_strimwidth($shortname, 0, 100, "...");
-                        $node->description = $shortname;
-                        $node->timemodified = time();
-                        \core_competency\api::update_competency($node);
-                        // idnumber is not updated automatically, therefore we do this directly.
-                        $DB->set_field('competency', 'idnumber', $dbidnumber, array('id' => $node->id));
+                        $data = (object)[];
+                        $data->idnumber = $dbidnumber;
+                        $data->parentid = $PARENTID;
+                        $data->shortname = mb_strimwidth($shortname, 0, 100, "...");
+                        $data->description = $shortname;
+                        static::update_competency($node, $data);
                     } else {
                         $onode = (object)array(
                             'shortname' => mb_strimwidth($shortname, 0, 100, "..."),
@@ -428,15 +485,13 @@ class locallib {
                 $ptopic = $DB->get_record('competency', array('idnumber' => $dbidnumber));
 
                 if (!empty($ptopic->id)) {
-                    $ptopic->idnumber = $dbidnumber;
-                    $ptopic->parentid = $node->id;
-                    $ptopic->shortname = mb_strimwidth($topic['shortname'], 0, 100, "...");
-                    $ptopic->description = (!empty($topic['description']) ? $topic['description'] : $topic['shortname']);
-                    $ptopic->sortorder = $topic['sorting'];
-                    $ptopic->timemodified = time();
-                    \core_competency\api::update_competency($ptopic);
-                    // idnumber is not updated automatically, therefore we do this directly.
-                    $DB->set_field('competency', 'idnumber', $ptopic->idnumber, array('id' => $ptopic->id));
+                    $data = (object)[];
+                    $data->idnumber = $dbidnumber;
+                    $data->parentid = $node->id;
+                    $data->shortname = mb_strimwidth($topic['shortname'], 0, 100, "...");
+                    $data->description = (!empty($topic['description']) ? $topic['description'] : $topic['shortname']);
+                    $data->sortorder = $topic['sorting'];
+                    static::update_competency($ptopic, $data);
                 } else {
                     $otopic = (object)array(
                         'shortname' => mb_strimwidth($topic['shortname'], 0, 100, "..."),
@@ -471,19 +526,18 @@ class locallib {
 
                         $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
                         if (!empty($comp->id)) {
-                            $comp->competencyframeworkid = $fr->id;
-                            $comp->idnumber = $dbidnumber;
-                            $comp->parentid = $ptopic->id;
-                            $comp->shortname = mb_strimwidth($descriptor['title'], 0, 100, "...");
-                            $comp->description = (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']);
-                            $comp->sortorder = $sorting;
-                            $comp->timemodified = time();
-                            \core_competency\api::update_competency($comp);
-                            // idnumber is not updated automatically, therefore we do this directly.
-                            $DB->set_field('competency', 'idnumber', $comp->idnumber, array('id' => $comp->id));
+                            $data = (object)[];
+                            $data->competencyframeworkid = $fr->id;
+                            $data->idnumber = $dbidnumber;
+                            $data->parentid = $ptopic->id;
+                            $data->shortname = $descriptor['title'];
+                            $data->description = (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']);
+                            $data->sortorder = $sorting;
+                            $format_name_and_description($data, $descriptor);
+                            static::update_competency($comp, $data);
                         } else {
-                            $ocomp = (object)array(
-                                'shortname' => mb_strimwidth($descriptor['title'], 0, 100, "..."),
+                            $data = (object)array(
+                                'shortname' => $descriptor['title'],
                                 'description' => (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']),
                                 'idnumber' => $dbidnumber,
                                 'competencyframeworkid' => $fr->id,
@@ -493,7 +547,9 @@ class locallib {
                                 'timemodified' => time(),
                                 'usermodified' => $USER->id,
                             );
-                            $competency = \core_competency\api::create_competency($ocomp);
+                            $format_name_and_description($data, $descriptor);
+
+                            $competency = \core_competency\api::create_competency($data);
                             $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
                         }
 
@@ -517,20 +573,17 @@ class locallib {
                                 $childcomp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
 
                                 if (!empty($childcomp->id)) {
-                                    $childcomp->competencyframeworkid = $fr->id;
-                                    $childcomp->idnumber = $dbidnumber;
-                                    $childcomp->parentid = $comp->id;
-                                    $childcomp->shortname = mb_strimwidth($childdescriptor['title'], 0, 100, "...");
-                                    $childcomp->description = (!empty($childdescriptor['description']) ? $childdescriptor['description'] : $childdescriptor['title']);
-                                    $childcomp->sortorder = $sorting;
-                                    $childcomp->timemodified = time();
-                                    \core_competency\api::update_competency($childcomp);
-                                    // idnumber is not updated automatically, therefore we do this directly.
-                                    //echo "compare $comp->parentid to $ptopic->id<br />";
-                                    $DB->set_field('competency', 'idnumber', $childcomp->idnumber, array('id' => $childcomp->id));
-                                    $DB->set_field('competency', 'parentid', $comp->id, array('id' => $childcomp->id));
+                                    $data = (object)[];
+                                    $data->competencyframeworkid = $fr->id;
+                                    $data->idnumber = $dbidnumber;
+                                    $data->parentid = $comp->id;
+                                    $data->shortname = $childdescriptor['title'];
+                                    $data->description = (!empty($childdescriptor['description']) ? $childdescriptor['description'] : $childdescriptor['title']);
+                                    $data->sortorder = $sorting;
+                                    $format_name_and_description($data, $childdescriptor);
+                                    static::update_competency($childcomp, $data);
                                 } else {
-                                    $ocomp = (object)array(
+                                    $data = (object)array(
                                         'shortname' => mb_strimwidth($childdescriptor['title'], 0, 100, "..."),
                                         'description' => (!empty($childdescriptor['description']) ? $childdescriptor['description'] : $childdescriptor['title']),
                                         'idnumber' => $dbidnumber,
@@ -542,7 +595,8 @@ class locallib {
                                         'timemodified' => time(),
                                         'usermodified' => $USER->id,
                                     );
-                                    $competency = \core_competency\api::create_competency($ocomp);
+                                    $format_name_and_description($data, $childdescriptor);
+                                    $competency = \core_competency\api::create_competency($data);
                                     $childcomp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
                                 }
                                 if (empty($childcomp->id)) {
