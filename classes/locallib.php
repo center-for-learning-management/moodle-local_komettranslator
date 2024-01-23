@@ -331,6 +331,19 @@ class locallib {
         // exit;
 
         $comp->timemodified = time();
+
+        // fix https://github.com/center-for-learning-management/eduvidual-src/issues/1668
+        // broken path attribute, path attribute has always end with the parentid
+        // don't know how the broken paths happened
+        if (substr($comp->path, -(strlen($comp->parentid) + 2)) != '/' . $comp->parentid . '/') {
+            $parent = $DB->get_record('competency', array('id' => $comp->parentid));
+            if (!$parent) {
+                throw new \moodle_exception('parent not found');
+            }
+
+            $comp->path = $parent->path . $comp->parentid . '/';
+        }
+
         \core_competency\api::update_competency($comp);
 
         // use $data instead of $comp, because $comp properties are overwritten in update_competency()
