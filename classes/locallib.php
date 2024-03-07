@@ -332,19 +332,12 @@ class locallib {
 
         $comp->timemodified = time();
 
-        // fix https://github.com/center-for-learning-management/eduvidual-src/issues/1668
-        // broken path attribute, path attribute has always end with the parentid
-        // don't know how the broken paths happened
-        if (substr($comp->path, -(strlen($comp->parentid) + 2)) != '/' . $comp->parentid . '/') {
-            $parent = $DB->get_record('competency', array('id' => $comp->parentid));
-            if (!$parent) {
-                throw new \moodle_exception('parent not found');
-            }
-
-            $comp->path = $parent->path . $comp->parentid . '/';
+        try {
+            \core_competency\api::update_competency($comp);
+        } catch (\Exception $e) {
+            echo 'Skipping Update, Error: ' . $e->getMessage() . "\n";
+            return;
         }
-
-        \core_competency\api::update_competency($comp);
 
         // use $data instead of $comp, because $comp properties are overwritten in update_competency()
 
@@ -356,7 +349,22 @@ class locallib {
         }
 
         if ($data->parentid && $old_comp->parentid != $data->parentid) {
-            $DB->set_field('competency', 'parentid', $data->parentid, array('id' => $comp->id));
+            // update the parent, because it is not updated in api::update_competency()
+
+            $parent = $DB->get_record('competency', array('id' => $data->parentid));
+            if (!$parent) {
+                throw new \moodle_exception('parent not found');
+            }
+
+            // fix https://github.com/center-for-learning-management/eduvidual-src/issues/1668
+            // also set path attribute, it has to end with the parentid
+            $path = $parent->path . $data->parentid . '/';
+
+            $DB->update_record('competency', [
+                'id' => $comp->id,
+                'parentid' => $data->parentid,
+                'path' => $path,
+            ]);
         }
 
         if ($data->competencyframeworkid && $old_comp->competencyframeworkid != $data->competencyframeworkid) {
