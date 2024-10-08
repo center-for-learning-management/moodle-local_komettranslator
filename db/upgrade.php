@@ -51,5 +51,29 @@ function xmldb_local_komettranslator_upgrade($oldversion = 0) {
         upgrade_plugin_savepoint(true, 2021031200, 'local', 'komettranslator');
     }
 
+    if ($oldversion < 2024100800) {
+
+        // Define index idx_type (not unique) to be added to local_komettranslator.
+        $table = new xmldb_table('local_komettranslator');
+        $index = new xmldb_index('idx_type', XMLDB_INDEX_NOTUNIQUE, ['type']);
+
+        // Conditionally launch add index idx_type.
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+
+        // Define index idx_internalid (not unique) to be added to local_komettranslator.
+        $table = new xmldb_table('local_komettranslator');
+        $index = new xmldb_index('idx_internalid', XMLDB_INDEX_NOTUNIQUE, ['internalid']);
+
+        // Conditionally launch add index idx_internalid.
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+
+        // Komettranslator savepoint reached.
+        upgrade_plugin_savepoint(true, 2024100800, 'local', 'komettranslator');
+    }
+
     return true;
 }
