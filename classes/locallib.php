@@ -23,6 +23,10 @@
 
 namespace local_komettranslator;
 
+use core_competency\api;
+use core_competency\competency;
+use core_competency\competency_framework;
+
 defined('MOODLE_INTERNAL') || die;
 
 class locallib {
@@ -152,6 +156,7 @@ class locallib {
                             ));
                         }
                     }
+
                     $frameworks[] = array(
                         'idnumber' => $idnumber,
                         'idnumber_array' => $idnumber_array,
@@ -184,6 +189,20 @@ class locallib {
             die();
         }
 
+        if (file_exists(__DIR__ . '/../data.xml')) {
+            // load local data.xml(doesn't need the webservice)
+            // needed for test.eduvidual.at, because of a wrong config https://komet.eeducation.at/uploads/data.xml is not reachable
+            if ($displaywarnings) {
+                echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                    'type' => 'info',
+                    'content' => get_string('xmlurl:loading', 'local_komettranslator', array('xmlurl' => __DIR__ . '/../data.xml' . ' (Local Dev!)')),
+                ));
+            }
+
+            $c = file_get_contents(__DIR__ . '/../data.xml');
+            return new \SimpleXMLElement($c);
+        }
+
         global $CFG;
         require_once("$CFG->dirroot/lib/filelib.php");
 
@@ -205,11 +224,12 @@ class locallib {
         }
         $sslskipverify = empty($sslverify) ? true : false;
 
-        $fullresponse = download_file_content($xmlurl, null, null, true, 300, 20, $sslskipverify);
-        if (!empty($fullresponse->results)) {
-            return new \SimpleXMLElement($fullresponse->results);
+        $response = download_file_content($xmlurl, null, null, true, 300, 20, $sslskipverify);
+        if (!empty($response->error) || $response->status != '200' || empty($response->results)) {
+            throw new \moodle_exception($response->error . " (url: {$xmlurl})");
         }
-        return false;
+
+        return new \SimpleXMLElement($response->results);
     }
 
     /**
@@ -276,31 +296,33 @@ class locallib {
      **/
     public static function mapping($type, $sourceid, $itemid, $internalid = 0, $remove = false) {
         global $DB;
+
         if ($remove) {
             return $DB->delete_records('local_komettranslator', array('type' => $type, 'sourceid' => $sourceid, 'itemid' => $itemid));
-        } else {
-            $mapping = $DB->get_record('local_komettranslator', array('type' => $type, 'sourceid' => $sourceid, 'itemid' => $itemid));
-            if (empty($mapping->id)) {
-                if (!empty($internalid)) {
-                    $mapping = (object)array(
-                        'type' => $type,
-                        'sourceid' => $sourceid,
-                        'itemid' => $itemid,
-                        'internalid' => $internalid,
-                        'timecreated' => time(),
-                        'timemodified' => time(),
-                    );
-                    $mapping->id = $DB->insert_record('local_komettranslator', $mapping);
-                }
-            } else {
-                if (!empty($internalid)) {
-                    $mapping->internalid = $internalid;
-                }
-                $mapping->timemodified = time();
-                $DB->update_record('local_komettranslator', $mapping);
-            }
-            return $mapping;
         }
+
+        $mapping = $DB->get_record('local_komettranslator', array('type' => $type, 'sourceid' => $sourceid, 'itemid' => $itemid));
+        if (!$mapping) {
+            if ($internalid) {
+                $mapping = (object)array(
+                    'type' => $type,
+                    'sourceid' => $sourceid,
+                    'itemid' => $itemid,
+                    'internalid' => $internalid,
+                    'timecreated' => time(),
+                    'timemodified' => time(),
+                );
+                $mapping->id = $DB->insert_record('local_komettranslator', $mapping);
+            }
+        } else {
+            if ($internalid) {
+                $mapping->internalid = $internalid;
+            }
+            $mapping->timemodified = time();
+            $DB->update_record('local_komettranslator', $mapping);
+        }
+
+        return $mapping;
     }
 
     /**
@@ -314,15 +336,19 @@ class locallib {
     private static function update_competency($comp, $data) {
         global $DB;
 
-        $old_comp = clone $comp;
-        foreach ($data as $key => $value) {
-            // convert to string, because db row is always string
-            $comp->$key = $value === null ? null : (string)$value;
-        }
+        // disabled this comparison, no performance boost and doesn't work like this anymore
+        // because if the parent moves to a different path, the path of children also needs to be updated
+        // although the parentid is the same
 
-        if (json_encode($old_comp) === json_encode($comp)) {
-            return;
-        }
+        // $old_comp = clone $comp;
+        // foreach ($data as $key => $value) {
+        //     // convert to string, because db row is always string
+        //     $comp->$key = $value === null ? null : (string)$value;
+        // }
+
+        // if (json_encode($old_comp) === json_encode($comp)) {
+        //     return;
+        // }
 
         // echo 'update!! ';
 
@@ -344,21 +370,29 @@ class locallib {
         // idnumber is not updated automatically, therefore we do this directly.
         $DB->set_field('competency', 'idnumber', $data->idnumber, array('id' => $comp->id));
 
-        if ($data->sortorder && $old_comp->sortorder != $data->sortorder) {
+        if (!empty($data->sortorder) && $comp->sortorder != $data->sortorder) {
             $DB->set_field('competency', 'sortorder', $data->sortorder, array('id' => $comp->id));
         }
 
-        if ($data->parentid && $old_comp->parentid != $data->parentid) {
-            // update the parent, because it is not updated in api::update_competency()
+        if (!isset($data->parentid)) {
+            throw new \moodle_exception('parentid not set!');
+        }
 
+        if ($data->parentid) {
             $parent = $DB->get_record('competency', array('id' => $data->parentid));
             if (!$parent) {
-                throw new \moodle_exception('parent not found');
+                throw new \moodle_exception("parent not found for {$data->id}, parentid: {$data->parentid}");
             }
 
             // fix https://github.com/center-for-learning-management/eduvidual-src/issues/1668
             // also set path attribute, it has to end with the parentid
             $path = $parent->path . $data->parentid . '/';
+        } else {
+            $path = '/0/';
+        }
+
+        if (($comp->parentid != $data->parentid || $comp->path != $path)) {
+            // update the parent, because it is not updated in api::update_competency()
 
             $DB->update_record('competency', [
                 'id' => $comp->id,
@@ -367,7 +401,7 @@ class locallib {
             ]);
         }
 
-        if ($data->competencyframeworkid && $old_comp->competencyframeworkid != $data->competencyframeworkid) {
+        if (!empty($data->competencyframeworkid) && $comp->competencyframeworkid != $data->competencyframeworkid) {
             $DB->set_field('competency', 'competencyframeworkid', $data->competencyframeworkid, array('id' => $comp->id));
         }
     }
@@ -403,6 +437,15 @@ class locallib {
             $data->shortname = mb_strimwidth($data->shortname, 0, 100 - strlen($niveau_short), "...") . $niveau_short;
             $data->description .= $niveau_long;
         };
+
+        static::delete_old_mappings();
+
+        $oldMappings = [
+            'framework' => $DB->get_records('local_komettranslator', ['type' => 'framework']),
+            'subject' => $DB->get_records('local_komettranslator', ['type' => 'subject']),
+            'topic' => $DB->get_records('local_komettranslator', ['type' => 'topic']),
+            'descriptor' => $DB->get_records('local_komettranslator', ['type' => 'descriptor']),
+        ];
 
         // Now loop through frameworks. If they are enabled, sync meta-data and descriptors.
         foreach ($frameworks as $_framework) {
@@ -456,13 +499,15 @@ class locallib {
                         $framework = $DB->get_record('competency_framework', array('idnumber' => $dbidnumber));
                         $fr = $DB->get_record('competency_framework', array('id' => $framework->id));
                     }
-                    self::mapping('framework', $sourceid, $id, $fr->id);
+                    $mapping = self::mapping('framework', $sourceid, $id, $fr->id);
+                    unset($oldMappings['framework'][$mapping->id]);
                 } else {
                     //echo "Search mapping for subject $shortname<br />";
                     $node = $DB->get_record('competency', array('idnumber' => $dbidnumber));
 
                     if (!empty($node->id)) {
                         $data = (object)[];
+                        $data->competencyframeworkid = $fr->id;
                         $data->idnumber = $dbidnumber;
                         $data->parentid = $PARENTID;
                         $data->shortname = mb_strimwidth($shortname, 0, 100, "...");
@@ -485,6 +530,7 @@ class locallib {
                         $node = $DB->get_record('competency', array('id' => $competency->id));
                     }
                     $mapping = self::mapping('subject', $sourceid, $id, $node->id);
+                    unset($oldMappings['subject'][$mapping->id]);
                     $PARENTID = $node->id;
                 }
             }
@@ -496,6 +542,7 @@ class locallib {
                 ));
             }
 
+            // ist da wo ein Fehler?
             $topics = self::load_topics($exacomp, $mapping);
 
             foreach ($topics as $topic) {
@@ -505,8 +552,9 @@ class locallib {
 
                 $ptopic = $DB->get_record('competency', array('idnumber' => $dbidnumber));
 
-                if (!empty($ptopic->id)) {
+                if ($ptopic) {
                     $data = (object)[];
+                    $data->competencyframeworkid = $fr->id;
                     $data->idnumber = $dbidnumber;
                     $data->parentid = $node->id;
                     $data->shortname = mb_strimwidth($topic['shortname'], 0, 100, "...");
@@ -528,118 +576,222 @@ class locallib {
                     $competency = \core_competency\api::create_competency($otopic);
                     $ptopic = $DB->get_record('competency', array('idnumber' => $dbidnumber));
                 }
-                if (empty($ptopic->id)) {
-                    echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                        'type' => 'danger',
-                        'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $topic['shortname'], 'idnumber' => $dbidnumber)),
-                    ));
-                } else {
-                    self::mapping('topic', $sourceid, $id, $ptopic->id);
+
+                if (!$ptopic) {
+                    throw new \moodle_exception('topic not created in db?!?');
+                    // echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                    //     'type' => 'danger',
+                    //     'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $topic['shortname'], 'idnumber' => $dbidnumber)),
+                    // ));
                 }
 
 
-                if (!empty($ptopic->id)) {
-                    // Parent competency exists, proceed with descriptors.
-                    foreach ($topic['descriptors'] as $sorting => $descriptor) {
-                        $sourceid = $descriptor['idnumber_array']['sourceid'];
-                        $id = $descriptor['idnumber_array']['id'];
-                        $dbidnumber = md5($sourceid . '_' . $id);
+                $mapping = self::mapping('topic', $sourceid, $id, $ptopic->id);
+                unset($oldMappings['topic'][$mapping->id]);
 
+                // Parent competency exists, proceed with descriptors.
+                foreach ($topic['descriptors'] as $sorting => $descriptor) {
+                    $sourceid = $descriptor['idnumber_array']['sourceid'];
+                    $id = $descriptor['idnumber_array']['id'];
+                    $dbidnumber = md5($sourceid . '_' . $id);
+
+                    $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                    if ($comp) {
+                        $data = (object)[];
+                        $data->competencyframeworkid = $fr->id;
+                        $data->idnumber = $dbidnumber;
+                        $data->parentid = $ptopic->id;
+                        $data->shortname = $descriptor['title'];
+                        $data->description = (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']);
+                        $data->sortorder = $sorting;
+                        $format_name_and_description($data, $descriptor);
+                        static::update_competency($comp, $data);
+                    } else {
+                        $data = (object)array(
+                            'shortname' => $descriptor['title'],
+                            'description' => (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']),
+                            'idnumber' => $dbidnumber,
+                            'competencyframeworkid' => $fr->id,
+                            'parentid' => $ptopic->id,
+                            'sortorder' => $sorting,
+                            'timecreated' => time(),
+                            'timemodified' => time(),
+                            'usermodified' => $USER->id,
+                        );
+                        $format_name_and_description($data, $descriptor);
+
+                        \core_competency\api::create_competency($data);
                         $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
-                        if (!empty($comp->id)) {
-                            $data = (object)[];
-                            $data->competencyframeworkid = $fr->id;
-                            $data->idnumber = $dbidnumber;
-                            $data->parentid = $ptopic->id;
-                            $data->shortname = $descriptor['title'];
-                            $data->description = (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']);
-                            $data->sortorder = $sorting;
-                            $format_name_and_description($data, $descriptor);
-                            static::update_competency($comp, $data);
-                        } else {
-                            $data = (object)array(
-                                'shortname' => $descriptor['title'],
-                                'description' => (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']),
-                                'idnumber' => $dbidnumber,
-                                'competencyframeworkid' => $fr->id,
-                                'parentid' => $ptopic->id,
-                                'sortorder' => $sorting,
-                                'timecreated' => time(),
-                                'timemodified' => time(),
-                                'usermodified' => $USER->id,
-                            );
-                            $format_name_and_description($data, $descriptor);
+                    }
 
-                            $competency = \core_competency\api::create_competency($data);
-                            $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
-                        }
+                    if (!$comp) {
+                        throw new \moodle_exception('descriptor not created in db?!?');
+                        // if ($displaywarnings) {
+                        //     echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                        //         'type' => 'danger',
+                        //         'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $descriptor['title'], 'idnumber' => $dbidnumber)),
+                        //     ));
+                        // }
+                    } else {
+                        $mapping = self::mapping('descriptor', $sourceid, $id, $comp->id);
+                        unset($oldMappings['descriptor'][$mapping->id]);
+                    }
 
-                        if (empty($comp->id)) {
-                            if ($displaywarnings) {
-                                echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                                    'type' => 'danger',
-                                    'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $descriptor['title'], 'idnumber' => $dbidnumber)),
-                                ));
-                            }
-                        } else {
-                            self::mapping('descriptor', $sourceid, $id, $comp->id);
-                        }
+                    if (!empty($descriptor['childdescriptors'])) {
+                        foreach ($descriptor['childdescriptors'] as $sorting => $childdescriptor) {
+                            $sourceid = $childdescriptor['idnumber_array']['sourceid'];
+                            $id = $childdescriptor['idnumber_array']['id'];
+                            $dbidnumber = md5($sourceid . '_' . $id);
 
-                        if (!empty($descriptor['childdescriptors'])) {
-                            foreach ($descriptor['childdescriptors'] as $sorting => $childdescriptor) {
-                                $sourceid = $childdescriptor['idnumber_array']['sourceid'];
-                                $id = $childdescriptor['idnumber_array']['id'];
-                                $dbidnumber = md5($sourceid . '_' . $id);
+                            $childcomp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
 
+                            if ($childcomp) {
+                                $data = (object)[];
+                                $data->competencyframeworkid = $fr->id;
+                                $data->idnumber = $dbidnumber;
+                                $data->parentid = $comp->id;
+                                $data->shortname = $childdescriptor['title'];
+                                $data->description = (!empty($childdescriptor['description']) ? $childdescriptor['description'] : $childdescriptor['title']);
+                                $data->sortorder = $sorting;
+                                $format_name_and_description($data, $childdescriptor);
+                                static::update_competency($childcomp, $data);
+                            } else {
+                                $data = (object)array(
+                                    'shortname' => mb_strimwidth($childdescriptor['title'], 0, 100, "..."),
+                                    'description' => (!empty($childdescriptor['description']) ? $childdescriptor['description'] : $childdescriptor['title']),
+                                    'idnumber' => $dbidnumber,
+                                    'competencyframeworkid' => $fr->id,
+                                    'parentid' => $comp->id,
+                                    'sortorder' => $sorting,
+                                    'timecreated' => time(),
+                                    'timemodified' => time(),
+                                    'usermodified' => $USER->id,
+                                );
+                                $format_name_and_description($data, $childdescriptor);
+                                \core_competency\api::create_competency($data);
                                 $childcomp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
-
-                                if (!empty($childcomp->id)) {
-                                    $data = (object)[];
-                                    $data->competencyframeworkid = $fr->id;
-                                    $data->idnumber = $dbidnumber;
-                                    $data->parentid = $comp->id;
-                                    $data->shortname = $childdescriptor['title'];
-                                    $data->description = (!empty($childdescriptor['description']) ? $childdescriptor['description'] : $childdescriptor['title']);
-                                    $data->sortorder = $sorting;
-                                    $format_name_and_description($data, $childdescriptor);
-                                    static::update_competency($childcomp, $data);
-                                } else {
-                                    $data = (object)array(
-                                        'shortname' => mb_strimwidth($childdescriptor['title'], 0, 100, "..."),
-                                        'description' => (!empty($childdescriptor['description']) ? $childdescriptor['description'] : $childdescriptor['title']),
-                                        'idnumber' => $dbidnumber,
-                                        'competencyframeworkid' => $fr->id,
-                                        'parentid' => $comp->id,
-                                        //'path' => $fr->contextid . '/' . $fr->id . '/' . $PARENTID,
-                                        'sortorder' => $sorting,
-                                        'timecreated' => time(),
-                                        'timemodified' => time(),
-                                        'usermodified' => $USER->id,
-                                    );
-                                    $format_name_and_description($data, $childdescriptor);
-                                    $competency = \core_competency\api::create_competency($data);
-                                    $childcomp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
-                                }
-                                if (empty($childcomp->id)) {
-                                    if ($displaywarnings) {
-                                        echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                                            'type' => 'danger',
-                                            'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $childdescriptor['title'], 'idnumber' => $dbidnumber)),
-                                        ));
-                                    }
-                                } else {
-                                    self::mapping('descriptor', $sourceid, $id, $childcomp->id);
-                                }
+                            }
+                            if (!$childcomp) {
+                                throw new \moodle_exception('descriptor not created in db?!?');
+                                // if ($displaywarnings) {
+                                //     echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                                //         'type' => 'danger',
+                                //         'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $childdescriptor['title'], 'idnumber' => $dbidnumber)),
+                                //     ));
+                                // }
+                            } else {
+                                $mapping = self::mapping('descriptor', $sourceid, $id, $childcomp->id);
+                                unset($oldMappings['descriptor'][$mapping->id]);
                             }
                         }
                     }
-                } else if ($displaywarnings) {
-                    echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
-                        'type' => 'danger',
-                        'content' => get_string('competency:notcreated', 'local_komettranslator', array('shortname' => $ptopic->shortname, 'idnumber' => $ptopic->idnumber)),
-                    ));
                 }
             }
         }
+
+        $oldMappings = array_filter($oldMappings);
+
+        $trashFramework = static::getTrashFramework();
+
+        $skipMoveIds = [];
+        if ($oldMappings) {
+            foreach ($oldMappings as $type => $oldMappingsOfType) {
+                if ($displayoutput) {
+                    echo "<h3>Löschen von {$type} (" . count($oldMappingsOfType) . "):</h3>";
+                }
+                foreach ($oldMappingsOfType as $oldMapping) {
+                    if ($type == 'framework') {
+                        $fr = $DB->get_record('competency_framework', array('id' => $oldMapping->internalid));
+                        if ($displayoutput) {
+                            echo 'Zu löschen: ' . $fr->shortname . '<br/>';
+                        }
+                        if ($fr) {
+                            echo 'Deleting a Frameworks not implemented';
+                        }
+                    } else {
+                        $competency = new competency($oldMapping->internalid);
+                        if ($displayoutput) {
+                            echo 'Zu löschen: ' . $competency->get('shortname') . '<br/>';
+                        }
+
+                        $competencyids = array(intval($competency->get('id')));
+                        $competencyids = array_merge(competency::get_descendants_ids($competency), $competencyids);
+                        $delete = competency::can_all_be_deleted($competencyids);
+
+                        if ($delete) {
+                            echo '&nbsp;&nbsp;&nbsp;==> alles löschen<br/>';
+
+                            \core_competency\api::delete_competency($competency->get('id'));
+                        } elseif ($competency->get('competencyframeworkid') == $trashFramework->get('id')) {
+                            echo '&nbsp;&nbsp;&nbsp;==> schon im Müllkorb<br/>';
+                            $skipMoveIds = array_merge($skipMoveIds, competency::get_descendants_ids($competency));
+                        } elseif (!in_array($oldMapping->internalid, $skipMoveIds)) {
+                            echo '&nbsp;&nbsp;&nbsp;==> verschieben<br/>';
+
+                            // $trashCompetency = static::getTrashCompetency($competency);
+
+                            // move to top level
+                            if ($competency->get('parentid') > 0) {
+                                api::set_parent_competency($competency->get('id'), 0);
+                            }
+
+                            foreach ($competencyids as $id) {
+                                $DB->update_record('competency', ['id' => $id, 'competencyframeworkid' => $trashFramework->get('id')]);
+                            }
+
+                            // wenn die competency verschoben wird, müssen die subids nicht verschoben werden und können ignoriert werden
+                            $skipMoveIds = array_merge($skipMoveIds, competency::get_descendants_ids($competency));
+                        }
+                    }
+                }
+            }
+        }
+
+        static::delete_old_mappings();
+    }
+
+    /**
+     * delete komettranslator mappings, which don't have competencies anymore
+     */
+    public static function delete_old_mappings() {
+        global $DB;
+
+        $DB->execute("DELETE FROM {local_komettranslator}
+        WHERE (type='subject' OR type='topic' OR type='descriptor')
+        AND internalid NOT IN
+            (SELECT id FROM {competency})");
+    }
+
+    private static function getTrashFramework(): competency_framework {
+        global $DB, $USER;
+
+        static $trashFramework = null;
+        if ($trashFramework) {
+            return $trashFramework;
+        }
+
+        $row = $DB->get_record('competency_framework', ['idnumber' => 'komettranslator-trash']);
+        if (!$row) {
+            $sysctx = \context_system::instance();
+            $row = (object)array(
+                'contextid' => $sysctx->id,
+                'description' => 'Alte Kompetenzrahmen',
+                'idnumber' => 'komettranslator-trash',
+                'shortname' => 'Alte Kompetenzrahmen',
+                'scaleid' => 2,
+                'scaleconfiguration' => '[{"scaleid":"2"},{"id":1,"scaledefault":1,"proficient":1},{"id":2,"scaledefault":0,"proficient":1}]',
+                'taxonomies' => 'competency,competency,competency,competency',
+                'visible' => 0,
+                'timecreated' => time(),
+                'timemodified' => time(),
+                'usermodified' => $USER->id,
+            );
+
+            $trashFramework = \core_competency\api::create_framework($row);
+        } else {
+            $trashFramework = new competency_framework($row->id);
+        }
+
+        return $trashFramework;
     }
 }
