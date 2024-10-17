@@ -361,8 +361,13 @@ class locallib {
         try {
             \core_competency\api::update_competency($comp);
         } catch (\Exception $e) {
-            echo 'Skipping Update, Error: ' . $e->getMessage() . "\n";
-            return;
+            echo "Update failed, rerun the script! (#{$comp->id} \"{$comp->shortname}\"), Error: " . $e->getMessage() . "\n";
+            var_dump([
+                'comp' => $comp,
+                'data' => $data,
+            ]);
+
+            // still try to update parent etc
         }
 
         // use $data instead of $comp, because $comp properties are overwritten in update_competency()
@@ -706,10 +711,17 @@ class locallib {
                             echo 'Zu löschen: ' . $fr->shortname . '<br/>';
                         }
                         if ($fr) {
-                            echo 'Deleting a Frameworks not implemented';
+                            echo 'Deleting a Frameworks not implemented -> needs manual deletion or change to hidden!<br/>';
                         }
                     } else {
-                        $competency = new competency($oldMapping->internalid);
+                        $competency = null;
+                        try {
+                            $competency = new competency($oldMapping->internalid);
+                        } catch (\moodle_exception $e) {
+                            echo 'Bereits gelöscht: ' . $oldMapping->internalid . '<br/>';
+                            // comeptency does not exist anymore and was just deleted by this script (eg. descriptor was deleted because topic was deleted)!
+                            continue;
+                        }
                         if ($displayoutput) {
                             echo 'Zu löschen: ' . $competency->get('shortname') . '<br/>';
                         }
