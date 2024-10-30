@@ -796,8 +796,7 @@ class locallib {
         if (str_contains($item->shortname, '...') && !empty($item->description)) {
             // was shortened
             // check if description is a longer version of shortname
-            $expression = str_replace('\.\.\.', '.*', preg_quote($item->shortname, '!'));
-            if (preg_match('!' . $expression . '!', $item->description)) {
+            if (str_starts_with($item->description, preg_replace('!\.\.\..*!', '', $item->shortname))) {
                 return $item->description;
             }
         }
