@@ -30,7 +30,7 @@ class api {
         return locallib::get_competency_longname($item);
     }
 
-    public static function get_copmetency_mapping(string $type, int $moodle_competency_id) {
-        return locallib::get_copmetency_mapping($type, $moodle_competency_id);
+    public static function get_copmetency_mapping(int $moodle_competency_id, ?string $type = null): ?object {
+        return locallib::get_copmetency_mapping($moodle_competency_id, $type);
     }
 }

@@ -328,9 +328,16 @@ class locallib {
     /**
      * Get mapping based on internalid of table competency or competency_framework.
      */
-    public static function get_copmetency_mapping(string $type, int $internalid) {
+    public static function get_copmetency_mapping(int $internalid, ?string $type = null): ?object {
         global $DB;
-        return $DB->get_record('local_komettranslator', array('type' => $type, 'internalid' => $internalid));
+        $where = [
+            'internalid' => $internalid,
+        ];
+        if ($type) {
+            $where['type'] = $type;
+        }
+
+        return $DB->get_record('local_komettranslator', $where) ?: null;
     }
 
     private static function update_competency(object $comp, object $data) {
