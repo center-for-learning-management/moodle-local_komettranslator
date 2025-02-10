@@ -32,7 +32,6 @@ class import extends \core\task\scheduled_task {
     }
 
     public function execute() {
-        global $DB;
         \local_komettranslator\locallib::runsync(false, false);
     }
 }
