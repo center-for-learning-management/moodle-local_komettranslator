@@ -23,8 +23,8 @@
 
 defined('MOODLE_INTERNAL') || die;
 
-$tasks = array(
-    array(
+$tasks = [
+    [
         'classname' => 'local_komettranslator\task\import',
         'blocking' => 0,
         'minute' => '0',
@@ -32,5 +32,5 @@ $tasks = array(
         'day' => '*',
         'dayofweek' => '*',
         'month' => '*',
-    ),
-);
+    ],
+];

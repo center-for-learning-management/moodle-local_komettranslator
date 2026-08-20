@@ -32,18 +32,18 @@ require_login();
 
 $idnumber = required_param('idnumber', PARAM_TEXT);
 
-$PAGE->set_url(new \moodle_url('/local/komettranslator/review.php', array('idnumber' => $idnumber)));
+$PAGE->set_url(new \moodle_url('/local/komettranslator/review.php', ['idnumber' => $idnumber]));
 $PAGE->set_context(\context_system::instance());
 $PAGE->set_heading(get_string('competencyframeworks:review', 'local_komettranslator'));
 $PAGE->set_title(get_string('competencyframeworks:review', 'local_komettranslator'));
 
 echo $OUTPUT->header();
 if (!is_siteadmin()) {
-    echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+    echo $OUTPUT->render_from_template('local_komettranslator/alert', [
         'type' => 'danger',
         'content' => get_string('access_denied', 'local_komettranslator'),
-        'url' => new \moodle_url('/my', array()),
-    ));
+        'url' => new \moodle_url('/my', []),
+    ]);
     echo $OUTPUT->footer();
     die();
 }
@@ -57,7 +57,7 @@ foreach ($exacomp->niveaus->niveau as $niveau) {
     $niveaus[(string)$niveau['id']] = (string)$niveau->title;
 }
 
-$framework = array();
+$framework = [];
 foreach ($exacomp->edulevels[0] as $xmledulevel) {
     foreach ($xmledulevel->schooltypes[0] as $xmlschooltype) {
         foreach ($xmlschooltype->subjects[0] as $xmlsubject) {
@@ -65,22 +65,22 @@ foreach ($exacomp->edulevels[0] as $xmledulevel) {
             if ($idnumber != $xmlidnumber) {
                 continue;
             }
-            $framework = array(
+            $framework = [
                 'title' => $xmlsubject->title->__toString(),
-                'topics' => array(),
-            );
+                'topics' => [],
+            ];
             foreach ($xmlsubject->topics[0] as $xmltopic) {
                 $topic = (object)[
                     'idnumber' => $xmltopic['source'] . '_' . $xmltopic['id'],
                     'shortname' => $xmltopic->title->__toString(),
-                    'descriptors' => array(),
+                    'descriptors' => [],
                 ];
                 $framework['topics'][] = $topic;
 
                 foreach ($xmltopic->descriptors[0] as $xmldescriptor) {
                     $descriptoridnumber = $xmldescriptor['source'] . '_' . $xmldescriptor['id'];
                     if (empty($descriptors[$descriptoridnumber])) {
-                        //echo "ERROR: MISSING DESCRIPTOR FOR $descriptoridnumber<br />";
+                        // echo "ERROR: MISSING DESCRIPTOR FOR $descriptoridnumber<br />";
                         continue;
                     }
 
