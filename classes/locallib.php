@@ -36,17 +36,17 @@ class locallib {
      * @param selection array of idnumbers to restrict result to.
      * @return array
      */
-    public static function load_descriptors($exacomp, $selection = array()) {
-        $descriptors = array();
+    public static function load_descriptors($exacomp, $selection = []) {
+        $descriptors = [];
 
         foreach ($exacomp->descriptors[0] as $xmldescriptor) {
             $topicidnumber = $xmldescriptor['source'] . '_' . $xmldescriptor['id'];
-            $topicidnumber_array = array(
+            $topicidnumber_array = [
                 'sourceid' => (string)$xmldescriptor['source'],
                 'id' => (string)$xmldescriptor['id'],
-            );
+            ];
             if (empty($selection) || in_array($topicidnumber, $selection)) {
-                $descriptors[$topicidnumber] = array(
+                $descriptors[$topicidnumber] = [
                     'idnumber' => $topicidnumber,
                     'idnumber_array' => $topicidnumber_array,
                     'type' => 'topic',
@@ -55,17 +55,17 @@ class locallib {
                     'description' => (string)$xmldescriptor->description,
                     'niveauid' => (string)$xmldescriptor->niveauid['id'],
                     'skillid' => (string)$xmldescriptor->skillid['id'],
-                    'childdescriptors' => array(),
-                );
+                    'childdescriptors' => [],
+                ];
                 if (isset($xmldescriptor->children)) {
                     foreach ($xmldescriptor->children[0] as $xmlchilddescriptor) {
                         $descriptoridnumber = $xmlchilddescriptor['source'] . '_' . $xmlchilddescriptor['id'];
-                        $descriptoridnumber_array = array(
+                        $descriptoridnumber_array = [
                             'sourceid' => (string)$xmlchilddescriptor['source'],
                             'id' => (string)$xmlchilddescriptor['id'],
-                        );
+                        ];
 
-                        $descriptors[$topicidnumber]['childdescriptors'][] = array(
+                        $descriptors[$topicidnumber]['childdescriptors'][] = [
                             'idnumber' => $descriptoridnumber,
                             'idnumber_array' => $descriptoridnumber_array,
                             'type' => 'competency',
@@ -74,8 +74,7 @@ class locallib {
                             'description' => (string)$xmlchilddescriptor->description,
                             'niveauid' => (string)$xmlchilddescriptor->niveauid['id'],
                             'skillid' => (string)$xmlchilddescriptor->skillid['id'],
-                        );
-
+                        ];
                     }
                 }
             }
@@ -92,79 +91,79 @@ class locallib {
      */
     public static function load_frameworks($exacomp, $displayoutput = true, $displaywarnings = true) {
         global $OUTPUT;
-        $frameworks = array();
+        $frameworks = [];
         $imploder = ' >> ';
         foreach ($exacomp->edulevels[0] as $xmledulevel) {
-            $edulevel = array(
+            $edulevel = [
                 'idnumber' => $xmledulevel['source'] . '_' . $xmledulevel['id'],
-                'idnumber_array' => array(
+                'idnumber_array' => [
                     'sourceid' => $xmledulevel['source']->__toString(),
                     'id' => $xmledulevel['id']->__toString(),
-                ),
+                ],
                 'shortname' => $xmledulevel->title,
-            );
+            ];
             foreach ($xmledulevel->schooltypes[0] as $xmlschooltype) {
-                $schooltype = array(
+                $schooltype = [
                     'idnumber' => $xmlschooltype['source'] . '_' . $xmlschooltype['id'],
-                    'idnumber_array' => array(
+                    'idnumber_array' => [
                         'sourceid' => $xmlschooltype['source']->__toString(),
                         'id' => $xmlschooltype['id']->__toString(),
-                    ),
+                    ],
                     'shortname' => $xmlschooltype->title,
-                );
+                ];
                 foreach ($xmlschooltype->subjects[0] as $xmlsubject) {
-                    $subject = array(
+                    $subject = [
                         'idnumber' => $xmlsubject['source'] . '_' . $xmlsubject['id'],
-                        'idnumber_array' => array(
+                        'idnumber_array' => [
                             'sourceid' => $xmlsubject['source']->__toString(),
                             'id' => $xmlsubject['id']->__toString(),
-                        ),
+                        ],
                         'shortname' => $xmlsubject->title->__toString() . (!empty($xmlsubject->class) ? ' (' . $xmlsubject->class . ')' : ''),
-                    );
+                    ];
                     $idnumber = $xmlsubject['source'] . '_' . $xmlsubject['id'];
-                    $idnumber_array = array(
+                    $idnumber_array = [
                         'sourceid' => $xmlsubject['source']->__toString(),
                         'id' => $xmlsubject['id']->__toString(),
-                    );
-                    $idnumber_all_array = array(
+                    ];
+                    $idnumber_all_array = [
                         $edulevel['idnumber_array'],
                         $schooltype['idnumber_array'],
                         $subject['idnumber_array'],
-                    );
-                    $shortname_array = array(
+                    ];
+                    $shortname_array = [
                         $edulevel['shortname'],
                         $schooltype['shortname'],
                         $subject['shortname'],
-                    );
+                    ];
                     $shortname = implode($imploder, $shortname_array);
 
                     if (optional_param('enable', '', PARAM_TEXT) == $idnumber) {
                         set_config('isactive_' . $idnumber, 1, 'local_komettranslator');
                         if ($displayoutput) {
-                            echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                            echo $OUTPUT->render_from_template('local_komettranslator/alert', [
                                 'type' => 'success',
-                                'content' => get_string('competencyframework:enabled', 'local_komettranslator', array('shortname' => $shortname)),
-                            ));
+                                'content' => get_string('competencyframework:enabled', 'local_komettranslator', ['shortname' => $shortname]),
+                            ]);
                         }
                     }
                     if (optional_param('disable', '', PARAM_TEXT) == $idnumber) {
                         unset_config('isactive_' . $idnumber, 'local_komettranslator');
                         if ($displayoutput) {
-                            echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                            echo $OUTPUT->render_from_template('local_komettranslator/alert', [
                                 'type' => 'success',
-                                'content' => get_string('competencyframework:disabled', 'local_komettranslator', array('shortname' => $shortname)),
-                            ));
+                                'content' => get_string('competencyframework:disabled', 'local_komettranslator', ['shortname' => $shortname]),
+                            ]);
                         }
                     }
 
-                    $frameworks[] = array(
+                    $frameworks[] = [
                         'idnumber' => $idnumber,
                         'idnumber_array' => $idnumber_array,
                         'idnumber_all_array' => $idnumber_all_array,
                         'isactive' => get_config('local_komettranslator', 'isactive_' . $idnumber),
                         'shortname' => $shortname,
                         'shortname_array' => $shortname_array,
-                    );
+                    ];
                 }
             }
         }
@@ -180,11 +179,11 @@ class locallib {
         global $OUTPUT;
         $xmlurl = get_config('local_komettranslator', 'xmlurl');
         if (empty($xmlurl)) {
-            echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+            echo $OUTPUT->render_from_template('local_komettranslator/alert', [
                 'type' => 'danger',
                 'content' => get_string('xmlurl:missing', 'local_komettranslator'),
-                'url' => new \moodle_url('/admin/settings.php', array('section' => 'local_komettranslator_settings')),
-            ));
+                'url' => new \moodle_url('/admin/settings.php', ['section' => 'local_komettranslator_settings']),
+            ]);
             echo $OUTPUT->footer();
             die();
         }
@@ -193,10 +192,10 @@ class locallib {
             // load local data.xml(doesn't need the webservice)
             // needed for test.eduvidual.at, because of a wrong config https://komet.eeducation.at/uploads/data.xml is not reachable
             if ($displaywarnings) {
-                echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                echo $OUTPUT->render_from_template('local_komettranslator/alert', [
                     'type' => 'info',
-                    'content' => get_string('xmlurl:loading', 'local_komettranslator', array('xmlurl' => __DIR__ . '/../data.xml' . ' (Local Dev!)')),
-                ));
+                    'content' => get_string('xmlurl:loading', 'local_komettranslator', ['xmlurl' => __DIR__ . '/../data.xml' . ' (Local Dev!)']),
+                ]);
             }
 
             $c = file_get_contents(__DIR__ . '/../data.xml');
@@ -207,19 +206,19 @@ class locallib {
         require_once("$CFG->dirroot/lib/filelib.php");
 
         if ($displaywarnings) {
-            echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+            echo $OUTPUT->render_from_template('local_komettranslator/alert', [
                 'type' => 'info',
-                'content' => get_string('xmlurl:loading', 'local_komettranslator', array('xmlurl' => $xmlurl)),
-            ));
+                'content' => get_string('xmlurl:loading', 'local_komettranslator', ['xmlurl' => $xmlurl]),
+            ]);
         }
 
         $sslverify = get_config('local_komettranslator', 'xmlurlsslverify');
         if (empty($sslverify)) {
             if ($displaywarnings) {
-                echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                echo $OUTPUT->render_from_template('local_komettranslator/alert', [
                     'type' => 'danger',
                     'content' => get_string('xmlurl:verifypeer:warning', 'local_komettranslator'),
-                ));
+                ]);
             }
         }
         $sslskipverify = empty($sslverify) ? true : false;
@@ -243,27 +242,27 @@ class locallib {
 
         $subjectidnumber = $mapping->sourceid . '_' . $mapping->itemid;
 
-        $topics = array();
+        $topics = [];
 
         foreach ($exacomp->edulevels[0] as $xmledulevel) {
             foreach ($xmledulevel->schooltypes[0] as $xmlschooltype) {
                 foreach ($xmlschooltype->subjects[0] as $xmlsubject) {
                     $idnumber = $xmlsubject['source'] . '_' . $xmlsubject['id'];
-                    $idnumber_array = array(
+                    $idnumber_array = [
                         'sourceid' => $xmlsubject['source']->__toString(),
                         'id' => $xmlsubject['id']->__toString(),
-                    );
+                    ];
                     if ($idnumber != $subjectidnumber) {
                         continue;
                     }
                     foreach ($xmlsubject->topics[0] as $xmltopic) {
                         $idnumber = $xmltopic['source'] . '_' . $xmltopic['id'];
-                        $idnumber_array = array(
+                        $idnumber_array = [
                             'sourceid' => $xmltopic['source']->__toString(),
                             'id' => $xmltopic['id']->__toString(),
-                        );
-                        $selection = array();
-                        $descriptors = array();
+                        ];
+                        $selection = [];
+                        $descriptors = [];
                         foreach ($xmltopic->descriptors[0] as $xmldescriptor) {
                             $selection[] = $xmldescriptor['source'] . '_' . $xmldescriptor['id'];
                         }
@@ -271,14 +270,14 @@ class locallib {
                             $descriptors = array_values(self::load_descriptors($exacomp, $selection));
                         }
 
-                        $topics[] = array(
+                        $topics[] = [
                             'idnumber' => $idnumber,
                             'idnumber_array' => $idnumber_array,
                             'shortname' => $xmltopic->title->__toString(),
                             'description' => '' . $xmltopic->description->__toString(),
                             'sorting' => intval($xmltopic->sorting),
                             'descriptors' => $descriptors,
-                        );
+                        ];
                     }
                 }
             }
@@ -298,20 +297,20 @@ class locallib {
         global $DB;
 
         if ($remove) {
-            return $DB->delete_records('local_komettranslator', array('type' => $type, 'sourceid' => $sourceid, 'itemid' => $itemid));
+            return $DB->delete_records('local_komettranslator', ['type' => $type, 'sourceid' => $sourceid, 'itemid' => $itemid]);
         }
 
-        $mapping = $DB->get_record('local_komettranslator', array('type' => $type, 'sourceid' => $sourceid, 'itemid' => $itemid));
+        $mapping = $DB->get_record('local_komettranslator', ['type' => $type, 'sourceid' => $sourceid, 'itemid' => $itemid]);
         if (!$mapping) {
             if ($internalid) {
-                $mapping = (object)array(
+                $mapping = (object)[
                     'type' => $type,
                     'sourceid' => $sourceid,
                     'itemid' => $itemid,
                     'internalid' => $internalid,
                     'timecreated' => time(),
                     'timemodified' => time(),
-                );
+                ];
                 $mapping->id = $DB->insert_record('local_komettranslator', $mapping);
             }
         } else {
@@ -385,10 +384,10 @@ class locallib {
         // use $data instead of $comp, because $comp properties are overwritten in update_competency()
 
         // idnumber is not updated automatically, therefore we do this directly.
-        $DB->set_field('competency', 'idnumber', $data->idnumber, array('id' => $comp->id));
+        $DB->set_field('competency', 'idnumber', $data->idnumber, ['id' => $comp->id]);
 
         if (!empty($data->sortorder) && $comp->sortorder != $data->sortorder) {
-            $DB->set_field('competency', 'sortorder', $data->sortorder, array('id' => $comp->id));
+            $DB->set_field('competency', 'sortorder', $data->sortorder, ['id' => $comp->id]);
         }
 
         if (!isset($data->parentid)) {
@@ -396,7 +395,7 @@ class locallib {
         }
 
         if ($data->parentid) {
-            $parent = $DB->get_record('competency', array('id' => $data->parentid));
+            $parent = $DB->get_record('competency', ['id' => $data->parentid]);
             if (!$parent) {
                 throw new \moodle_exception("parent not found for {$data->id}, parentid: {$data->parentid}");
             }
@@ -419,7 +418,7 @@ class locallib {
         }
 
         if (!empty($data->competencyframeworkid) && $comp->competencyframeworkid != $data->competencyframeworkid) {
-            $DB->set_field('competency', 'competencyframeworkid', $data->competencyframeworkid, array('id' => $comp->id));
+            $DB->set_field('competency', 'competencyframeworkid', $data->competencyframeworkid, ['id' => $comp->id]);
         }
     }
 
@@ -483,8 +482,8 @@ class locallib {
 
                 if ($i == 0) {
                     // This is created as framework within Moodle
-                    //echo "Search mapping for framework $shortname<br />";
-                    $fr = $DB->get_record('competency_framework', array('idnumber' => $dbidnumber));
+                    // echo "Search mapping for framework $shortname<br />";
+                    $fr = $DB->get_record('competency_framework', ['idnumber' => $dbidnumber]);
 
                     if (!empty($fr->id)) {
                         $fr->idnumber = $dbidnumber;
@@ -494,10 +493,10 @@ class locallib {
                         // @TODO Scale configuration and taxonomies
                         \core_competency\api::update_framework($fr);
                         // idnumber is not updated automatically, therefore we do this directly.
-                        $DB->set_field('competency_framework', 'idnumber', $fr->idnumber, array('id' => $fr->id));
+                        $DB->set_field('competency_framework', 'idnumber', $fr->idnumber, ['id' => $fr->id]);
                     } else {
                         $sysctx = \context_system::instance();
-                        $oframework = (object)array(
+                        $oframework = (object)[
                             'contextid' => $sysctx->id,
                             'description' => $shortname,
                             'idnumber' => $dbidnumber,
@@ -509,18 +508,18 @@ class locallib {
                             'timecreated' => time(),
                             'timemodified' => time(),
                             'usermodified' => $USER->id,
-                        );
+                        ];
 
                         // @TODO Scale configuration and taxonomies
                         $framework = \core_competency\api::create_framework($oframework);
-                        $framework = $DB->get_record('competency_framework', array('idnumber' => $dbidnumber));
-                        $fr = $DB->get_record('competency_framework', array('id' => $framework->id));
+                        $framework = $DB->get_record('competency_framework', ['idnumber' => $dbidnumber]);
+                        $fr = $DB->get_record('competency_framework', ['id' => $framework->id]);
                     }
                     $mapping = self::mapping('framework', $sourceid, $id, $fr->id);
                     unset($oldMappings['framework'][$mapping->id]);
                 } else {
-                    //echo "Search mapping for subject $shortname<br />";
-                    $node = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                    // echo "Search mapping for subject $shortname<br />";
+                    $node = $DB->get_record('competency', ['idnumber' => $dbidnumber]);
 
                     $data = (object)[
                         'shortname' => $shortname,
@@ -540,8 +539,8 @@ class locallib {
                             'usermodified' => $USER->id,
                         ]);
                         $competency = \core_competency\api::create_competency($data);
-                        $competency = $DB->get_record('competency', array('idnumber' => $dbidnumber));
-                        $node = $DB->get_record('competency', array('id' => $competency->id));
+                        $competency = $DB->get_record('competency', ['idnumber' => $dbidnumber]);
+                        $node = $DB->get_record('competency', ['id' => $competency->id]);
                     }
                     $mapping = self::mapping('subject', $sourceid, $id, $node->id);
                     unset($oldMappings['subject'][$mapping->id]);
@@ -550,10 +549,10 @@ class locallib {
             }
 
             if ($displayoutput) {
-                echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+                echo $OUTPUT->render_from_template('local_komettranslator/alert', [
                     'type' => 'success',
-                    'content' => get_string('competencyframework:processing', 'local_komettranslator', array('shortname' => $shortname, 'idnumber' => $dbidnumber)),
-                ));
+                    'content' => get_string('competencyframework:processing', 'local_komettranslator', ['shortname' => $shortname, 'idnumber' => $dbidnumber]),
+                ]);
             }
 
             // ist da wo ein Fehler?
@@ -564,7 +563,7 @@ class locallib {
                 $id = $topic['idnumber_array']['id'];
                 $dbidnumber = md5($sourceid . '_' . $id);
 
-                $ptopic = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                $ptopic = $DB->get_record('competency', ['idnumber' => $dbidnumber]);
 
                 $data = (object)[
                     'shortname' => $topic['shortname'],
@@ -584,7 +583,7 @@ class locallib {
                         'usermodified' => $USER->id,
                     ]);
                     $competency = \core_competency\api::create_competency($data);
-                    $ptopic = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                    $ptopic = $DB->get_record('competency', ['idnumber' => $dbidnumber]);
                 }
 
                 if (!$ptopic) {
@@ -605,7 +604,7 @@ class locallib {
                     $id = $descriptor['idnumber_array']['id'];
                     $dbidnumber = md5($sourceid . '_' . $id);
 
-                    $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                    $comp = $DB->get_record('competency', ['idnumber' => $dbidnumber]);
                     $data = (object)[
                         'shortname' => $descriptor['title'],
                         'description' => (!empty($descriptor['description']) ? $descriptor['description'] : $descriptor['title']),
@@ -624,7 +623,7 @@ class locallib {
                             'usermodified' => $USER->id,
                         ]);
                         \core_competency\api::create_competency($data);
-                        $comp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                        $comp = $DB->get_record('competency', ['idnumber' => $dbidnumber]);
                     }
 
                     if (!$comp) {
@@ -646,7 +645,7 @@ class locallib {
                             $id = $childdescriptor['idnumber_array']['id'];
                             $dbidnumber = md5($sourceid . '_' . $id);
 
-                            $childcomp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                            $childcomp = $DB->get_record('competency', ['idnumber' => $dbidnumber]);
 
                             $data = (object)[
                                 'shortname' => $childdescriptor['title'],
@@ -666,7 +665,7 @@ class locallib {
                                     'usermodified' => $USER->id,
                                 ]);
                                 \core_competency\api::create_competency($data);
-                                $childcomp = $DB->get_record('competency', array('idnumber' => $dbidnumber));
+                                $childcomp = $DB->get_record('competency', ['idnumber' => $dbidnumber]);
                             }
                             if (!$childcomp) {
                                 throw new \moodle_exception('descriptor not created in db?!?');
@@ -698,7 +697,7 @@ class locallib {
                 }
                 foreach ($oldMappingsOfType as $oldMapping) {
                     if ($type == 'framework') {
-                        $fr = $DB->get_record('competency_framework', array('id' => $oldMapping->internalid));
+                        $fr = $DB->get_record('competency_framework', ['id' => $oldMapping->internalid]);
                         if ($displayoutput) {
                             echo 'Zu löschen: ' . $fr->shortname . '<br/>';
                         }
@@ -718,7 +717,7 @@ class locallib {
                             echo 'Zu löschen: ' . $competency->get('shortname') . '<br/>';
                         }
 
-                        $competencyids = array(intval($competency->get('id')));
+                        $competencyids = [intval($competency->get('id'))];
                         $competencyids = array_merge(competency::get_descendants_ids($competency), $competencyids);
                         $delete = competency::can_all_be_deleted($competencyids);
 
@@ -777,7 +776,7 @@ class locallib {
         $row = $DB->get_record('competency_framework', ['idnumber' => 'komettranslator-trash']);
         if (!$row) {
             $sysctx = \context_system::instance();
-            $row = (object)array(
+            $row = (object)[
                 'contextid' => $sysctx->id,
                 'description' => 'Alte Kompetenzrahmen',
                 'idnumber' => 'komettranslator-trash',
@@ -789,7 +788,7 @@ class locallib {
                 'timecreated' => time(),
                 'timemodified' => time(),
                 'usermodified' => $USER->id,
-            );
+            ];
 
             $trashFramework = \core_competency\api::create_framework($row);
         } else {

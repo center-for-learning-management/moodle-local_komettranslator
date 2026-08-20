@@ -52,7 +52,6 @@ function xmldb_local_komettranslator_upgrade($oldversion = 0) {
     }
 
     if ($oldversion < 2024100800) {
-
         // Define index idx_type (not unique) to be added to local_komettranslator.
         $table = new xmldb_table('local_komettranslator');
         $index = new xmldb_index('idx_type', XMLDB_INDEX_NOTUNIQUE, ['type']);

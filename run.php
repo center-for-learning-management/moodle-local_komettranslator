@@ -30,18 +30,18 @@ namespace local_komettranslator;
 require('../../config.php');
 
 require_login();
-$PAGE->set_url(new \moodle_url('/local/komettranslator/run.php', array()));
+$PAGE->set_url(new \moodle_url('/local/komettranslator/run.php', []));
 $PAGE->set_context(\context_system::instance());
 $PAGE->set_heading(get_string('competencyframeworks', 'local_komettranslator'));
 $PAGE->set_title(get_string('competencyframeworks', 'local_komettranslator'));
 
 echo $OUTPUT->header();
 if (!is_siteadmin()) {
-    echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+    echo $OUTPUT->render_from_template('local_komettranslator/alert', [
         'type' => 'danger',
         'content' => get_string('access_denied', 'local_komettranslator'),
-        'url' => new \moodle_url('/my', array()),
-    ));
+        'url' => new \moodle_url('/my', []),
+    ]);
     echo $OUTPUT->footer();
     die();
 }

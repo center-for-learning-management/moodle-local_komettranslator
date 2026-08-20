@@ -21,22 +21,22 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['pluginname'] = 'KOMET Translator';
-$string['pluginname:settings'] = 'KOMET Translator';
-$string['privacy:metadata'] = 'This plugin does not store any personal data';
-
 $string['access_denied'] = 'Zugriff nicht gestattet';
-
-$string['cron:title'] = 'KOMET Translator Cron';
 $string['competency:notcreated'] = 'No competency could be found or created for <strong>{$a->shortname} / {$a->idnumber}</strong>!';
-$string['competencyframework:enabled'] = 'Enabled synchronization for framework <strong>{$a->shortname}</strong>!';
 $string['competencyframework:disabled'] = 'Disabled synchronization for framework <strong>{$a->shortname}</strong>!';
+$string['competencyframework:enabled'] = 'Enabled synchronization for framework <strong>{$a->shortname}</strong>!';
 $string['competencyframework:notcreated'] = 'No competency framework could be found or created for <strong>{$a->shortname} / {$a->idnumber}</strong>!';
 $string['competencyframework:processing'] = 'Processing competency framework <strong>{$a->shortname} / {$a->idnumber}</strong>!';
 $string['competencyframeworks'] = 'Competency Frameworks';
 $string['competencyframeworks:review'] = 'Review Competency Frameworks';
-
+$string['cron:title'] = 'KOMET Translator Cron';
 $string['descriptors'] = 'Descriptors';
+$string['pluginname'] = 'KOMET Translator';
+$string['pluginname:settings'] = 'KOMET Translator';
+$string['privacy:metadata'] = 'This plugin does not store any personal data';
+
+
+
 
 $string['runsync'] = 'Run sync';
 
