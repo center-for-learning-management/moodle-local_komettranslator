@@ -28,4 +28,4 @@ $plugin->requires = 2014051200;
 $plugin->component = 'local_komettranslator';
 $plugin->release = '1.0';
 $plugin->maturity = MATURITY_STABLE;
-$plugin->dependencies = array();
+$plugin->dependencies = [];

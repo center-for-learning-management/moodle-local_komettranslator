@@ -33,18 +33,18 @@ $enable = optional_param('enable', '', PARAM_TEXT);
 $disable = optional_param('disable', '', PARAM_TEXT);
 
 require_login();
-$PAGE->set_url(new \moodle_url('/local/komettranslator/frameworks.php', array()));
+$PAGE->set_url(new \moodle_url('/local/komettranslator/frameworks.php', []));
 $PAGE->set_context(\context_system::instance());
 $PAGE->set_heading(get_string('competencyframeworks', 'local_komettranslator'));
 $PAGE->set_title(get_string('competencyframeworks', 'local_komettranslator'));
 
 echo $OUTPUT->header();
 if (!is_siteadmin()) {
-    echo $OUTPUT->render_from_template('local_komettranslator/alert', array(
+    echo $OUTPUT->render_from_template('local_komettranslator/alert', [
         'type' => 'danger',
         'content' => get_string('access_denied', 'local_komettranslator'),
-        'url' => new \moodle_url('/my', array()),
-    ));
+        'url' => new \moodle_url('/my', []),
+    ]);
     echo $OUTPUT->footer();
     die();
 }
@@ -58,5 +58,5 @@ if (!is_siteadmin()) {
 $exacomp = \local_komettranslator\locallib::load_from_xmlurl(false);
 $frameworks = \local_komettranslator\locallib::load_frameworks($exacomp, true, false);
 
-echo $OUTPUT->render_from_template('local_komettranslator/frameworks', array('frameworks' => $frameworks, 'wwwroot' => $CFG->wwwroot));
+echo $OUTPUT->render_from_template('local_komettranslator/frameworks', ['frameworks' => $frameworks, 'wwwroot' => $CFG->wwwroot]);
 echo $OUTPUT->footer();
